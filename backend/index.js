@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";                  // ← Add this
 import webhookRoutes from "./routes/webhook.js";
 import repoRoutes from "./routes/repo.js";
+import authRoutes from "./routes/auth.js";
 
 dotenv.config();
 
@@ -21,5 +22,6 @@ app.use(bodyParser.json());
 // Routes
 app.use("/", webhookRoutes);
 app.use("/repo", repoRoutes);
+app.use("/api/auth", authRoutes);
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));

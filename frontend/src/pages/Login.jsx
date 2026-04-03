@@ -1,10 +1,39 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
-import { Shield, ArrowRight, Lock } from 'lucide-react'
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Shield, ArrowRight, Lock, AlertCircle, Loader2 } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
+import { login } from '../api/auth' // Ensure this path is correct
 
 const Login = () => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const navigate = useNavigate()
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setError('')
+    setIsLoading(true)
+
+    try {
+      const data = await login({ email, password })
+      
+      // Store session data for the frontend to use
+      localStorage.setItem('auditshield_token', data.session.access_token)
+      localStorage.setItem('auditshield_user', JSON.stringify(data.user))
+      
+      // Success! Move to the command center
+      navigate('/dashboard')
+    } catch (err) {
+      // Catch errors from our fetch service (e.g., "Login failed")
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-cobalt-bg flex items-center justify-center p-6 relative overflow-hidden">
       {/* Decorative Background Elements */}
@@ -25,12 +54,23 @@ const Login = () => {
         </div>
 
         <div className="bg-cobalt-surface border border-cobalt-border rounded-2xl p-8 shadow-2xl backdrop-blur-sm">
-          <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+          {/* Error Message Display */}
+          {error && (
+            <div className="mb-6 flex items-center gap-3 p-4 bg-risk-high/10 border border-risk-high/20 rounded-xl text-risk-high text-xs font-bold animate-in fade-in slide-in-from-top-2">
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleLogin}>
             <Input
               label="Enterprise Email"
               type="email"
               placeholder="name@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isLoading}
             />
 
             <div className="space-y-1">
@@ -46,11 +86,31 @@ const Login = () => {
                 </Link>
               </div>
 
-              <Input type="password" placeholder="••••••••" required />
+              <Input 
+                type="password" 
+                placeholder="••••••••" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required 
+                disabled={isLoading}
+              />
             </div>
 
-            <Button className="w-full py-4 font-bold uppercase tracking-widest text-sm mt-2">
-              Authorize Session <ArrowRight size={18} className="ml-2" />
+            <Button 
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-4 font-bold uppercase tracking-widest text-sm mt-2 flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  Authenticating...
+                </>
+              ) : (
+                <>
+                  Authorize Session <ArrowRight size={18} />
+                </>
+              )}
             </Button>
           </form>
 
@@ -60,12 +120,10 @@ const Login = () => {
             </div>
             <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em]">
               <span className="bg-cobalt-surface px-4 text-cobalt-muted">
-                External SSO
+                AuditShield Secure Login
               </span>
             </div>
           </div>
-
-          {/* 🚫 GitHub button removed */}
 
           <p className="text-center mt-8 text-sm text-cobalt-muted">
             New to the platform?{' '}
