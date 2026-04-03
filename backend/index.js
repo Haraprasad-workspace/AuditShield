@@ -9,7 +9,7 @@ dotenv.config();
 const app = express();
 app.use(bodyParser.json());
 
-// ✅ Now safe to build GH_HEADERS after dotenv loaded
+// ✅ GH_HEADERS after dotenv
 const GH_HEADERS = {
   Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
   Accept: "application/vnd.github.v3+json",
@@ -51,6 +51,8 @@ const SAFE_VALUES = new Set([
 ]);
 
 function isSafeValue(val) {
+  // ✅ Guard against undefined/null/non-string
+  if (!val || typeof val !== "string") return true;
   const lower = val.toLowerCase();
   return (
     SAFE_VALUES.has(lower) ||
@@ -63,32 +65,31 @@ function isSafeValue(val) {
 
 /* ─────────────────────────────────────────────
    🔑 GENERIC SECRET PATTERNS
-   Structural shape detection — not company-specific
 ───────────────────────────────────────────── */
 const SECRET_PATTERNS = [
   {
     // API_KEY=, AUTH_TOKEN=, MY_SECRET=, DB_PASSWORD=, etc.
     name: "Secret-like variable assignment",
     regex: /(?:api[_-]?key|api[_-]?secret|access[_-]?key|auth[_-]?key|auth[_-]?token|private[_-]?key|secret[_-]?key|client[_-]?secret|app[_-]?secret|encryption[_-]?key|signing[_-]?key|jwt[_-]?secret|session[_-]?secret|master[_-]?key|token|password|passwd|pwd|credential|secret)\s*[:=]\s*['"`]?([A-Za-z0-9+/=_\-\.]{16,})['"`]?/gi,
-    extract: (match) => match[2],
+    extract: (match) => match[2] ?? null,
   },
   {
-    // process.env.ANYTHING = "hardcoded" — secret hardcoded instead of env ref
+    // process.env.ANYTHING = "hardcoded"
     name: "Hardcoded env override",
     regex: /process\.env\.[A-Z_]+\s*=\s*['"`]([A-Za-z0-9+/=_\-\.]{16,})['"`]/g,
-    extract: (match) => match[1],
+    extract: (match) => match[1] ?? null,
   },
   {
-    // Authorization: Bearer <token> or Authorization: Basic <base64>
+    // Authorization: Bearer <token>
     name: "Hardcoded Authorization header",
     regex: /Authorization\s*[:=]\s*['"`]?\s*(Bearer|Basic)\s+([A-Za-z0-9+/=_\-\.]{16,})['"`]?/gi,
-    extract: (match) => match[2],
+    extract: (match) => match[2] ?? null,
   },
   {
     // scheme://user:pass@host
     name: "URL with embedded credentials",
     regex: /[a-z][a-z0-9+\-.]*:\/\/[^:@\s]+:[^@\s]{8,}@[^\s]+/gi,
-    extract: () => null, // always flag — no entropy check needed
+    extract: () => null, // always flag
   },
   {
     // -----BEGIN PRIVATE KEY-----
@@ -97,32 +98,31 @@ const SECRET_PATTERNS = [
     extract: () => null,
   },
   {
-    // Any high-entropy quoted string anywhere in code
+    // Any high-entropy quoted string
     name: "High-entropy quoted string",
     regex: /['"`]([A-Za-z0-9+/=_\-\.]{20,})['"`]/g,
-    extract: (match) => match[1],
+    extract: (match) => match[1] ?? null,
   },
 ];
 
 /* ─────────────────────────────────────────────
    🗂️ SENSITIVE FILENAME DETECTION
-   Files that should never be committed
 ───────────────────────────────────────────── */
 const SENSITIVE_FILENAME_PATTERNS = [
-  /^\.env(\.\w+)?$/i,              // .env, .env.local, .env.production
-  /\.pem$/i,                        // certificates
-  /\.key$/i,                        // key files
-  /\.pfx$/i,                        // PKCS12 bundles
+  /^\.env(\.\w+)?$/i,
+  /\.pem$/i,
+  /\.key$/i,
+  /\.pfx$/i,
   /\.p12$/i,
-  /^id_rsa/i,                       // SSH private keys
+  /^id_rsa/i,
   /^id_dsa/i,
   /^id_ecdsa/i,
   /^id_ed25519/i,
-  /credentials\.json$/i,            // GCP, AWS credential files
+  /credentials\.json$/i,
   /secret[s]?\.json$/i,
   /secrets?\.ya?ml$/i,
   /keystore\.(jks|p12)$/i,
-  /service[_-]?account.*\.json$/i,  // GCP service accounts
+  /service[_-]?account.*\.json$/i,
   /\.htpasswd$/i,
   /auth\.json$/i,
 ];
@@ -131,6 +131,14 @@ function isSensitiveFilename(filepath) {
   const filename = filepath.split("/").pop();
   return SENSITIVE_FILENAME_PATTERNS.some((p) => p.test(filename));
 }
+
+/* ─────────────────────────────────────────────
+   🚫 EXCLUDED FILES — never scan your own backend
+───────────────────────────────────────────── */
+const EXCLUDED_FILES = [
+  "backend/index.js",
+  "backend/supabase.js",
+];
 
 /* ─────────────────────────────────────────────
    🔍 MAIN SCANNER
@@ -146,13 +154,11 @@ function scanForSecrets(content, filename) {
     while ((match = pattern.regex.exec(content)) !== null) {
       const extractedValue = pattern.extract ? pattern.extract(match) : null;
 
-      // Validate extracted value with entropy + allowlist
       if (extractedValue !== null) {
         if (isSafeValue(extractedValue)) continue;
         if (!isHighEntropy(extractedValue)) continue;
       }
 
-      // Deduplicate same finding type per file
       const key = `${pattern.name}::${filename}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -173,8 +179,6 @@ function scanForSecrets(content, filename) {
 /* ─────────────────────────────────────────────
    🌐 GITHUB API HELPERS
 ───────────────────────────────────────────── */
-
-// Fetch with timeout — don't hang on slow GitHub responses
 async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -204,7 +208,6 @@ async function getCommitFiles(repoFullName, commitSha) {
     console.log(`\n📡 Fetching files for commit: ${commitSha.slice(0, 7)}`);
 
     const res = await fetchWithTimeout(url, { headers: GH_HEADERS });
-
     console.log(`📡 GitHub API status: ${res.status}`);
 
     if (!res.ok) {
@@ -231,6 +234,13 @@ async function processFile(file, commitSha, repoFullName) {
   if (file.status === "removed") return;
 
   const filename = file.filename;
+
+  // ✅ Skip excluded files
+  if (EXCLUDED_FILES.includes(filename)) {
+    console.log(`   ⏭️  Skipped (excluded): ${filename}`);
+    return;
+  }
+
   let findings = [];
 
   // 1️⃣ Sensitive filename check
@@ -242,8 +252,7 @@ async function processFile(file, commitSha, repoFullName) {
   if (file.raw_url) {
     const content = await fetchFileContent(file.raw_url);
     if (content) {
-      const contentFindings = scanForSecrets(content, filename);
-      findings = [...findings, ...contentFindings];
+      findings = [...findings, ...scanForSecrets(content, filename)];
     }
   }
 
@@ -252,7 +261,7 @@ async function processFile(file, commitSha, repoFullName) {
     return;
   }
 
-  // 3️⃣ Bulk insert all findings for this file in ONE Supabase query
+  // 3️⃣ Bulk insert all findings in ONE Supabase query
   const alerts = findings.map((finding) => ({
     source: "github",
     message: `Secret detected in file: ${finding.file}`,
