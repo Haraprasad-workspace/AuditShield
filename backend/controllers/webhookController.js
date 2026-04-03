@@ -33,9 +33,9 @@ async function processFile(file, commitSha, repoFullName, userId) {
     return;
   }
 
-  // 3️⃣ Bulk insert into Supabase with USER ATTRITUBTION
+  // 3️⃣ Map findings to alert objects
   const alerts = findings.map((finding) => ({
-    user_id: userId, // 👈 CRITICAL: This allows the frontend to find the alert
+    user_id: userId,
     source: "github",
     message: `Secret detected in file: ${finding.file}`,
     risk: "critical",
@@ -47,11 +47,30 @@ async function processFile(file, commitSha, repoFullName, userId) {
     repo: repoFullName,
     commit_sha: commitSha,
     file_path: finding.file,
-    status: 'open'
+    status: 'open',
+    created_at: new Date().toISOString() // Ensure precise timestamping
   }));
 
-  const { error } = await supabase.from("alerts").insert(alerts);
-  if (error) console.error(`❌ Supabase insert error:`, error.message);
+  // ✅ NEEDY CHANGE: Deduplication logic to prevent "4 logs for 1 change"
+  for (const alert of alerts) {
+    const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
+    
+    // Check if this exact alert was recently inserted
+    const { data: existing } = await supabase
+      .from("alerts")
+      .select("id")
+      .eq("message", alert.message)
+      .eq("commit_sha", alert.commit_sha)
+      .gt("created_at", tenSecondsAgo)
+      .maybeSingle();
+
+    if (!existing) {
+      const { error } = await supabase.from("alerts").insert([alert]);
+      if (error) console.error(`❌ Supabase insert error:`, error.message);
+    } else {
+      console.log(`   🛡️  Deduplication: Blocked redundant log for ${filename}`);
+    }
+  }
 
   findings.forEach((f) =>
     console.log(
@@ -61,20 +80,25 @@ async function processFile(file, commitSha, repoFullName, userId) {
 }
 
 export async function handleGithubWebhook(req, res) {
+  // ✅ NEEDY CHANGE: Filter for actual 'push' events only
+  const githubEvent = req.headers['x-github-event'];
+  if (githubEvent !== 'push') {
+    return res.status(200).send('Non-push event ignored.');
+  }
+
   res.sendStatus(200); // Respond fast to avoid GitHub timeout
 
   try {
     const { commits, repository } = req.body;
 
-    if (!commits || !repository) {
-      console.log("⚠️  Webhook received but no commits/repository in payload");
+    if (!commits || !repository || commits.length === 0) {
       return;
     }
 
     const repoFullName = repository.full_name;
     console.log(`\n🚀 Push received — repo: ${repoFullName} | commits: ${commits.length}`);
 
-    // 🕵️ LOOKUP: Find the user who connected this repo
+    // 🕵️ LOOKUP: Find user attribution
     const { data: repoRecord, error: repoError } = await supabase
       .from("connected_repos")
       .select("user_id")
@@ -82,13 +106,13 @@ export async function handleGithubWebhook(req, res) {
       .single();
 
     if (repoError || !repoRecord) {
-      console.error(`❌ Attribution Error: Repo ${repoFullName} not found in connected_repos table.`);
+      console.error(`❌ Attribution Error: Repo ${repoFullName} not found.`);
       return;
     }
 
     const userId = repoRecord.user_id;
 
-    // ✅ Fetch all commit file lists in PARALLEL
+    // ✅ Parallel file list fetching
     const allCommitFiles = await Promise.all(
       commits.map((commit) =>
         getCommitFiles(repoFullName, commit.id).then((files) => ({
@@ -98,7 +122,7 @@ export async function handleGithubWebhook(req, res) {
       )
     );
 
-    // ✅ Process all files across all commits in PARALLEL with the userId
+    // ✅ Parallel file processing
     const allTasks = allCommitFiles.flatMap(({ sha, files }) =>
       files.map((file) => processFile(file, sha, repoFullName, userId))
     );
