@@ -1,0 +1,2 @@
+# test.txt
+API_KEY=xK9mP2nQ7wL4vR3sAbCdEfGhJkMnPqRs
