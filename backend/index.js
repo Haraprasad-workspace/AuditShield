@@ -1,3 +1,4 @@
+import { supabase } from "./supabase.js";
 import express from "express";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
@@ -5,6 +6,7 @@ import cors from "cors";                  // ← Add this
 import webhookRoutes from "./routes/webhook.js";
 import repoRoutes from "./routes/repo.js";
 import authRoutes from "./routes/auth.js";
+import documentRoutes from "./routes/document.js";
 
 dotenv.config();
 
@@ -23,5 +25,6 @@ app.use(bodyParser.json());
 app.use("/", webhookRoutes);
 app.use("/repo", repoRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api", documentRoutes);
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));

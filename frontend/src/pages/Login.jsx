@@ -1,34 +1,68 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Shield, ArrowRight, Lock, AlertCircle, Loader2 } from 'lucide-react'
+import Swal from 'sweetalert2' // Import SweetAlert2
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
-import { login } from '../api/auth' // Ensure this path is correct
+import { login } from '../api/auth'
 
 const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
 
+  // Custom Toast/Alert Styling for AuditShield
+  const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    background: '#0B1221', // Cobalt Surface
+    color: '#FFFFFF',
+    didOpen: (toast) => {
+      toast.addEventListener('mouseenter', Swal.stopTimer)
+      toast.addEventListener('mouseleave', Swal.resumeTimer)
+    }
+  })
+
   const handleLogin = async (e) => {
     e.preventDefault()
-    setError('')
     setIsLoading(true)
 
     try {
       const data = await login({ email, password })
       
-      // Store session data for the frontend to use
       localStorage.setItem('auditshield_token', data.session.access_token)
       localStorage.setItem('auditshield_user', JSON.stringify(data.user))
       
-      // Success! Move to the command center
+      // ✅ Success Alert
+      await Toast.fire({
+        icon: 'success',
+        title: 'Authorization Granted',
+        text: 'Syncing with perimeter guard...',
+        background: '#0B1221',
+        iconColor: '#10B981' // risk-low green
+      })
+
       navigate('/dashboard')
     } catch (err) {
-      // Catch errors from our fetch service (e.g., "Login failed")
-      setError(err.message)
+      // ❌ Error Alert
+      Swal.fire({
+        title: 'Access Denied',
+        text: err.message,
+        icon: 'error',
+        background: '#0B1221',
+        color: '#FFFFFF',
+        confirmButtonColor: '#38BDF8', // cobalt-accent
+        iconColor: '#FF4B5C', // risk-high red
+        customClass: {
+          popup: 'border border-cobalt-border rounded-2xl shadow-2xl',
+          title: 'text-xl font-heading font-bold uppercase tracking-tight',
+          confirmButton: 'px-8 py-3 rounded-lg font-bold uppercase tracking-widest text-xs'
+        }
+      })
     } finally {
       setIsLoading(false)
     }
@@ -54,14 +88,6 @@ const Login = () => {
         </div>
 
         <div className="bg-cobalt-surface border border-cobalt-border rounded-2xl p-8 shadow-2xl backdrop-blur-sm">
-          {/* Error Message Display */}
-          {error && (
-            <div className="mb-6 flex items-center gap-3 p-4 bg-risk-high/10 border border-risk-high/20 rounded-xl text-risk-high text-xs font-bold animate-in fade-in slide-in-from-top-2">
-              <AlertCircle size={16} />
-              <span>{error}</span>
-            </div>
-          )}
-
           <form className="space-y-5" onSubmit={handleLogin}>
             <Input
               label="Enterprise Email"

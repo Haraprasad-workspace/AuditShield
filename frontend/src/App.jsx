@@ -1,43 +1,37 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
-// Layout Components
-import Sidebar from './components/layout/Sidebar'
-import Navbar from './components/layout/Navbar'
-
 // Pages
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
 import Logs from './pages/Logs'
+import DocumentAudit from './pages/DocumentAudit' // ✅ Added this import
 
-// A wrapper to handle the layout for protected pages
+// 🔐 Authentication Guard
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('auditshield_token');
+  if (!token) return <Navigate to="/auth" replace />;
+  return children;
+};
+
+// 🚫 Inverse Auth Guard
+// If user has a token, don't let them see Login/Register (redirect to dashboard)
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('auditshield_token');
+  if (token) return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
 const PageLayout = ({ children }) => {
-  const location = useLocation()
-  
-  // Hide Sidebar/Navbar if we are on the Auth pages (Login or Register)
-  const isAuthPage = location.pathname === '/auth' || location.pathname === '/register'
-
-  if (isAuthPage) {
-    return <div className="min-h-screen bg-cobalt-bg">{children}</div>
-  }
-
   return (
-    <div className="min-h-screen bg-cobalt-bg text-white flex">
-      {/* Fixed Sidebar */}
-      <Sidebar />
-      
-      {/* Main Content Area */}
-      <div className="flex-1 ml-64 flex flex-col">
-        <Navbar />
-        <main className="p-8 animate-in fade-in duration-500">
-          {children}
-        </main>
-      </div>
+    <div className="min-h-screen bg-cobalt-bg text-white selection:bg-cobalt-accent/30">
+      {children}
     </div>
-  )
+  );
 }
 
 function App() {
@@ -45,24 +39,54 @@ function App() {
     <Router>
       <PageLayout>
         <Routes>
-          {/* Default Route redirects to Dashboard */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* --- PUBLIC ROUTES --- */}
+          <Route path="/" element={<Landing />} />
           
-          {/* Auth Routes */}
-          <Route path="/auth" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          {/* Prevent logged-in users from seeing Auth pages */}
+          <Route path="/auth" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
           
-          {/* Protected Dashboard Routes */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/logs" element={<Logs />} />
+          {/* --- PROTECTED ROUTES --- */}
+          <Route 
+            path="/dashboard" 
+            element={<ProtectedRoute><Dashboard /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/inventory" 
+            element={<ProtectedRoute><Inventory /></ProtectedRoute>} 
+          />
           
-          {/* 404 Catch-all */}
+          {/* ✅ NEW: Document Audit Route added to the perimeter */}
+          <Route 
+            path="/document-audit" 
+            element={<ProtectedRoute><DocumentAudit /></ProtectedRoute>} 
+          />
+
+          <Route 
+            path="/reports" 
+            element={<ProtectedRoute><Reports /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/logs" 
+            element={<ProtectedRoute><Logs /></ProtectedRoute>} 
+          />
+          
+          {/* --- 404 SYSTEM ERROR --- */}
           <Route path="*" element={
-            <div className="flex flex-col items-center justify-center h-[80vh] text-center">
-              <h1 className="text-6xl font-heading font-bold text-cobalt-accent mb-4">404</h1>
-              <p className="text-cobalt-muted uppercase tracking-widest font-bold">Perimeter Breach: Page Not Found</p>
+            <div className="flex flex-col items-center justify-center min-h-screen text-center p-6">
+              <div className="p-6 bg-risk-high/10 border border-risk-high/20 rounded-3xl mb-8 shadow-[0_0_50px_rgba(255,75,92,0.1)]">
+                <h1 className="text-8xl font-heading font-black text-risk-high tracking-tighter">404</h1>
+              </div>
+              <h2 className="text-xl font-heading font-bold uppercase tracking-widest text-white italic">Sector Not Found</h2>
+              <p className="text-cobalt-muted mt-2 max-w-xs uppercase text-[10px] font-black tracking-[0.2em] leading-relaxed">
+                The requested resource does not exist or has been relocated outside the current sector.
+              </p>
+              <button 
+                onClick={() => window.history.back()}
+                className="mt-10 px-8 py-3 bg-cobalt-surface border border-cobalt-border rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-cobalt-accent transition-all shadow-lg"
+              >
+                Return to Safe Zone
+              </button>
             </div>
           } />
         </Routes>
