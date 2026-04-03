@@ -3,7 +3,7 @@ import { getCommitFiles, fetchFileContent } from "../utils/github.js";
 import { scanForSecrets } from "../utils/scanner.js";
 import { isSensitiveFilename, isExcludedFile } from "../utils/patterns.js";
 
-async function processFile(file, commitSha, repoFullName) {
+async function processFile(file, commitSha, repoFullName, userId) {
   if (file.status === "removed") return;
 
   const filename = file.filename;
@@ -33,8 +33,9 @@ async function processFile(file, commitSha, repoFullName) {
     return;
   }
 
-  // 3️⃣ Bulk insert into Supabase
+  // 3️⃣ Bulk insert into Supabase with USER ATTRITUBTION
   const alerts = findings.map((finding) => ({
+    user_id: userId, // 👈 CRITICAL: This allows the frontend to find the alert
     source: "github",
     message: `Secret detected in file: ${finding.file}`,
     risk: "critical",
@@ -46,6 +47,7 @@ async function processFile(file, commitSha, repoFullName) {
     repo: repoFullName,
     commit_sha: commitSha,
     file_path: finding.file,
+    status: 'open'
   }));
 
   const { error } = await supabase.from("alerts").insert(alerts);
@@ -59,7 +61,7 @@ async function processFile(file, commitSha, repoFullName) {
 }
 
 export async function handleGithubWebhook(req, res) {
-  res.sendStatus(200); // respond fast so GitHub doesn't time out
+  res.sendStatus(200); // Respond fast to avoid GitHub timeout
 
   try {
     const { commits, repository } = req.body;
@@ -69,8 +71,22 @@ export async function handleGithubWebhook(req, res) {
       return;
     }
 
-    console.log(`\n🚀 Push received — repo: ${repository.full_name} | commits: ${commits.length}`);
     const repoFullName = repository.full_name;
+    console.log(`\n🚀 Push received — repo: ${repoFullName} | commits: ${commits.length}`);
+
+    // 🕵️ LOOKUP: Find the user who connected this repo
+    const { data: repoRecord, error: repoError } = await supabase
+      .from("connected_repos")
+      .select("user_id")
+      .eq("repo", repoFullName)
+      .single();
+
+    if (repoError || !repoRecord) {
+      console.error(`❌ Attribution Error: Repo ${repoFullName} not found in connected_repos table.`);
+      return;
+    }
+
+    const userId = repoRecord.user_id;
 
     // ✅ Fetch all commit file lists in PARALLEL
     const allCommitFiles = await Promise.all(
@@ -82,15 +98,15 @@ export async function handleGithubWebhook(req, res) {
       )
     );
 
-    // ✅ Process all files across all commits in PARALLEL
+    // ✅ Process all files across all commits in PARALLEL with the userId
     const allTasks = allCommitFiles.flatMap(({ sha, files }) =>
-      files.map((file) => processFile(file, sha, repoFullName))
+      files.map((file) => processFile(file, sha, repoFullName, userId))
     );
 
     await Promise.all(allTasks);
 
     console.log(
-      `\n✅ Done — scanned ${allTasks.length} file(s) across ${commits.length} commit(s)`
+      `\n✅ Done — scanned ${allTasks.length} file(s) across ${commits.length} commit(s) for User: ${userId}`
     );
   } catch (err) {
     console.error("❌ Webhook processing error:", err);
