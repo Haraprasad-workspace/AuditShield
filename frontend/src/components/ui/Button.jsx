@@ -1,23 +1,26 @@
-import React from 'react'
+import { cn } from "../../lib/utils.js"; // adjust path if needed
 
-const Button = ({ children, variant = 'primary', className = '', ...props }) => {
-  // Logic for different styles using Midnight Cobalt colors
-  const baseStyles = "px-5 py-2.5 rounded-lg font-medium transition-all active:scale-95 flex items-center justify-center gap-2";
-  
-  const variants = {
-    primary: "bg-cobalt-accent text-cobalt-bg hover:shadow-[0_0_15px_rgba(56,189,248,0.4)]",
-    outline: "border border-cobalt-border text-white hover:bg-cobalt-surface",
-    danger: "bg-risk-high text-white hover:bg-red-600"
-  };
-
+export default function Button({ children, className, ...props }) {
   return (
-    <button 
-      className={`${baseStyles} ${variants[variant]} ${className}`} 
+    <button
+      className={cn(
+        "relative overflow-hidden px-6 py-3 rounded-lg font-medium",
+        "bg-blue-200 text-blue-800",        // Light blue background + darker text
+        "hover:bg-blue-300 hover:shadow-lg", // Lighter blue on hover
+        "transition-colors duration-300",
+        "group",
+        className
+      )}
       {...props}
     >
-      {children}
+      <span className="relative z-10">{children}</span>
+      <div
+        className={cn(
+          "absolute inset-0 -translate-x-full",
+          "bg-linear-to-r from-transparent via-white/20 to-transparent",
+          "group-hover:translate-x-full transition-transform duration-700"
+        )}
+      />
     </button>
-  )
+  );
 }
-
-export default Button
