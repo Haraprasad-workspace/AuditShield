@@ -29,8 +29,8 @@ function shannonEntropy(str) {
   }, 0);
 }
 
-const ENTROPY_THRESHOLD = 3.5;
-const MIN_SECRET_LENGTH = 16;
+const ENTROPY_THRESHOLD = 4.5;  // raised from 3.5 — eliminates false positives
+const MIN_SECRET_LENGTH = 20;   // raised from 16 — short strings are rarely secrets
 const MAX_SECRET_LENGTH = 512;
 
 function isHighEntropy(value) {
@@ -56,10 +56,15 @@ function isSafeValue(val) {
   const lower = val.toLowerCase();
   return (
     SAFE_VALUES.has(lower) ||
-    /^(.)\1+$/.test(val) ||       // all same char: "aaaaaaa"
-    /^[0-9]+$/.test(val) ||       // pure numbers
-    /^[a-z]+$/.test(val) ||       // pure lowercase word
-    /localhost|127\.0\.0\.1|example\.com/.test(lower)
+    /^(.)\1+$/.test(val) ||             // all same char: "aaaaaaa"
+    /^[0-9]+$/.test(val) ||             // pure numbers
+    /^[a-z]+$/.test(val) ||             // pure lowercase word
+    /localhost|127\.0\.0\.1|example\.com/.test(lower) ||
+    /^\/[a-z\/\-]+$/.test(val) ||       // route paths like "/dashboard"
+    /^#[0-9a-f]{3,8}$/i.test(val) ||   // hex colors like "#ffffff"
+    /^https?:\/\//.test(val) ||         // plain URLs
+    val.includes(" ") ||                 // sentences/phrases
+    /^[A-Za-z\s\-]+$/.test(val)         // plain English strings
   );
 }
 
@@ -133,12 +138,44 @@ function isSensitiveFilename(filepath) {
 }
 
 /* ─────────────────────────────────────────────
-   🚫 EXCLUDED FILES — never scan your own backend
+   🚫 EXCLUDED FILES & EXTENSIONS
 ───────────────────────────────────────────── */
 const EXCLUDED_FILES = [
   "backend/index.js",
   "backend/supabase.js",
 ];
+
+const EXCLUDED_EXTENSIONS = [
+  ".lock",   // package-lock.json, yarn.lock — full of hashes
+  ".css",    // no secrets in stylesheets
+  ".md",     // markdown docs
+  ".svg",    // SVG files full of base64-looking strings
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".ico",
+  ".woff",
+  ".woff2",
+  ".map",    // source maps — full of high entropy strings
+];
+
+const EXCLUDED_FILENAMES = [
+  "package-lock.json",  // npm hashes everywhere
+  "yarn.lock",
+  "pnpm-lock.yaml",
+];
+
+function isExcludedFile(filepath) {
+  const filename = filepath.split("/").pop();
+  const ext = filename.includes(".") ? "." + filename.split(".").pop() : "";
+
+  return (
+    EXCLUDED_FILES.includes(filepath) ||
+    EXCLUDED_FILENAMES.includes(filename) ||
+    EXCLUDED_EXTENSIONS.includes(ext)
+  );
+}
 
 /* ─────────────────────────────────────────────
    🔍 MAIN SCANNER
@@ -235,8 +272,8 @@ async function processFile(file, commitSha, repoFullName) {
 
   const filename = file.filename;
 
-  // ✅ Skip excluded files
-  if (EXCLUDED_FILES.includes(filename)) {
+  // ✅ Skip excluded files and extensions
+  if (isExcludedFile(filename)) {
     console.log(`   ⏭️  Skipped (excluded): ${filename}`);
     return;
   }
