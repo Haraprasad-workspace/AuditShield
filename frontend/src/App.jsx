@@ -9,7 +9,7 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
-import Logs from './pages/Logs'
+import Logs from './pages/logs'
 import DocumentAudit from './pages/DocumentAudit' // ✅ Added this import
 import DriveCallback from "./pages/DriveCallback";
 import DriveAudit from "./pages/DriveAudit";
