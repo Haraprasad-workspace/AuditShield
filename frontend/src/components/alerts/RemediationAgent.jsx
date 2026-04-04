@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { Sparkles, CheckCircle2, ShieldCheck, ArrowRight } from 'lucide-react'
+import { Sparkles, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const RemediationAgent = ({ riskTitle = "AWS Secret Leak" }) => {
   const [status, setStatus] = useState('idle') // idle, fixing, done
@@ -13,44 +14,71 @@ const RemediationAgent = ({ riskTitle = "AWS Secret Leak" }) => {
   }
 
   return (
-    <Card className="border-cobalt-accent/30 bg-gradient-to-br from-cobalt-surface to-cobalt-bg overflow-hidden relative">
-      {/* Decorative Glow */}
-      <div className="absolute -top-10 -right-10 w-32 h-32 bg-cobalt-accent/10 blur-3xl rounded-full"></div>
+    <Card className="border-cobalt-accent/30 bg-gradient-to-br from-cobalt-surface to-cobalt-bg overflow-hidden relative p-5 md:p-6">
+      {/* Decorative Glow - Scaled for mobile */}
+      <div className="absolute -top-10 -right-10 w-24 md:w-32 h-24 md:h-32 bg-cobalt-accent/10 blur-2xl md:blur-3xl rounded-full pointer-events-none"></div>
       
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-cobalt-accent/20 rounded-lg text-cobalt-accent">
-          <Sparkles size={20} />
+        <div className="p-2 bg-cobalt-accent/20 rounded-lg text-cobalt-accent shrink-0">
+          <Sparkles size={18} className="md:w-5 md:h-5" />
         </div>
-        <h3 className="font-heading font-bold text-white uppercase tracking-wider text-sm">
-          AuditShield Agent
+        <h3 className="font-heading font-black text-white uppercase tracking-[0.15em] text-[10px] md:text-xs">
+          Neural_Shield_Agent
         </h3>
       </div>
 
-      <div className="space-y-4">
-        <p className="text-sm text-cobalt-muted leading-relaxed">
-          I've analyzed the <span className="text-white font-medium">{riskTitle}</span>. 
-          I can automatically rotate this key in AWS and update your GitHub secrets to restore compliance.
+      <div className="space-y-5">
+        <p className="text-xs md:text-sm text-cobalt-muted leading-relaxed font-medium">
+          Automated analysis of <span className="text-white font-bold italic">{riskTitle}</span> complete. 
+          I am authorized to rotate this vector and update linked security nodes to restore perimeter integrity.
         </p>
 
-        {status === 'idle' && (
-          <Button onClick={handleFix} className="w-full py-3">
-            Execute Remediation <ArrowRight size={16} className="ml-2" />
-          </Button>
-        )}
+        <AnimatePresence mode="wait">
+          {status === 'idle' && (
+            <motion.div
+              key="idle"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Button 
+                onClick={handleFix} 
+                className="w-full py-3.5 md:py-3 text-[10px] md:text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 group"
+              >
+                Execute Remediation 
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </motion.div>
+          )}
 
-        {status === 'fixing' && (
-          <div className="flex items-center justify-center gap-3 py-3 text-cobalt-accent">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-cobalt-accent border-t-transparent"></div>
-            <span className="text-sm font-medium animate-pulse">Agent is rotating keys...</span>
-          </div>
-        )}
+          {status === 'fixing' && (
+            <motion.div 
+              key="fixing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center gap-3 py-2 text-cobalt-accent"
+            >
+              <Loader2 className="animate-spin" size={20} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
+                Rotating_Security_Keys...
+              </span>
+            </motion.div>
+          )}
 
-        {status === 'done' && (
-          <div className="flex items-center gap-3 py-3 px-4 bg-risk-low/10 border border-risk-low/30 rounded-lg text-risk-low">
-            <ShieldCheck size={20} />
-            <span className="text-sm font-bold uppercase tracking-tight">Security Restored</span>
-          </div>
-        )}
+          {status === 'done' && (
+            <motion.div 
+              key="done"
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center justify-center gap-3 py-3 px-4 bg-risk-low/10 border border-risk-low/30 rounded-xl text-risk-low"
+            >
+              <ShieldCheck size={18} />
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">
+                Compliance_Restored
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Card>
   )
