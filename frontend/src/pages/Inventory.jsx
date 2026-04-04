@@ -191,7 +191,15 @@ const Inventory = () => {
             {/* MAIN CARDS */}
             <div className="xl:col-span-9 space-y-10 md:space-y-16">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-                <IntegrationCard Icon={GitHubLogo} title="GitHub" description="Real-time perimeter scanning for hardcoded secrets." status={monitoredRepos.length > 0 ? "Connected" : "Disconnected"} color="bg-gray-700" onConnect={() => setShowGhModal(true)} />
+                <IntegrationCard 
+                  Icon={GitHubLogo} 
+                  title="GitHub" 
+                  description="Real-time perimeter scanning for hardcoded secrets." 
+                  status={monitoredRepos.length > 0 ? "Connected" : "Disconnected"} 
+                  color="bg-gray-700" 
+                  onConnect={() => setShowGhModal(true)}
+                  btnText={monitoredRepos.length > 0 ? "Connected" : "Connect GitHub"} 
+                />
                 <IntegrationCard Icon={DriveLogo} title="G_Drive" description="Scan for public file permissions." status={driveConnected ? "Active" : "Disconnected"} color="bg-blue-500" onConnect={handleDriveAction} btnText={driveConnected ? "Open Explorer" : "Connect"} />
                 <IntegrationCard Icon={SlackLogo} title="Slack" description="Remediation alerts for teams." status="Standby" color="bg-purple-500" onConnect={() => {}} />
               </div>
