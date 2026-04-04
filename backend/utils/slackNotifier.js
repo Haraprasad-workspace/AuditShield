@@ -6,6 +6,9 @@ import fetch from "node-fetch";
  */
 export const sendSlackAlert = async (webhookUrl, logData) => {
   try {
+    // 1. Resolve Frontend URL for the button (Local dev vs Production)
+    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+
     // 🎨 Color coding based on risk level
     const riskColors = {
       critical: "#FF4B5C", // Red
@@ -70,7 +73,8 @@ export const sendSlackAlert = async (webhookUrl, logData) => {
                     text: "🔍 Open Audit Console",
                     emoji: true
                   },
-                  url: "http://localhost:5173/logs", // Points to your frontend
+                  // ✅ Dynamic production link
+                  url: `${FRONTEND_URL}/logs`, 
                   style: "primary",
                   action_id: "view_logs"
                 }

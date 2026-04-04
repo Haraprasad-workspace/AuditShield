@@ -1,7 +1,9 @@
+"use client";
+
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShieldPlus, User, Globe, CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
-import Swal from 'sweetalert2' // Import SweetAlert2
+import { ShieldPlus, CheckCircle2, Loader2 } from 'lucide-react'
+import Swal from 'sweetalert2'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { register } from '../api/auth'
@@ -35,6 +37,7 @@ const Register = () => {
     setIsLoading(true)
 
     try {
+      // The register function uses import.meta.env.VITE_API_BASE_URL inside ../api/auth.js
       await register(formData)
       
       setIsSuccess(true)
@@ -55,7 +58,7 @@ const Register = () => {
       // ❌ Error Alert
       Swal.fire({
         title: 'Initialization Failed',
-        text: err.message,
+        text: err.message || "Could not establish connection to security node.",
         icon: 'error',
         background: '#0B1221',
         color: '#FFFFFF',
@@ -74,15 +77,17 @@ const Register = () => {
 
   return (
     <div className="min-h-screen bg-cobalt-bg flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Decorative BG */}
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none"></div>
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-cobalt-accent/5 blur-[120px] rounded-full"></div>
 
       <div className="max-w-xl w-full z-10">
         <div className="flex flex-col items-center mb-8">
           <div className="p-4 bg-cobalt-surface border border-cobalt-border rounded-2xl mb-4 shadow-[0_0_20px_rgba(56,189,248,0.1)]">
             <ShieldPlus className="text-cobalt-accent" size={40} />
           </div>
-          <h1 className="text-3xl font-heading font-bold text-white uppercase tracking-tighter text-center">Establish Trust</h1>
-          <p className="text-cobalt-muted mt-2 text-center">Join 500+ teams using AuditShield for compliance</p>
+          <h1 className="text-3xl font-heading font-bold text-white uppercase tracking-tighter text-center italic">Establish Trust</h1>
+          <p className="text-cobalt-muted mt-2 text-center text-sm">Join 500+ teams using AuditShield for compliance</p>
         </div>
 
         <div className="bg-cobalt-surface border border-cobalt-border rounded-2xl p-8 shadow-2xl backdrop-blur-sm">
@@ -93,7 +98,7 @@ const Register = () => {
                 <CheckCircle2 size={32} />
               </div>
               <h3 className="text-xl font-bold text-white uppercase tracking-tight">Account Initialized</h3>
-              <p className="text-cobalt-muted mt-2">Authorization required. Check your inbox to continue.</p>
+              <p className="text-cobalt-muted mt-2 text-sm">Authorization required. Check your inbox to continue.</p>
               <div className="mt-6 flex items-center gap-2 text-[10px] text-cobalt-accent uppercase font-black tracking-widest animate-pulse">
                 Redirecting to terminal...
               </div>
@@ -102,7 +107,7 @@ const Register = () => {
             <form className="grid grid-cols-1 md:grid-cols-2 gap-6" onSubmit={handleRegister}>
               <Input 
                 label="Full Name" 
-                placeholder="Haraprasad Mahapatra" 
+                placeholder="Audit Specialist" 
                 value={formData.fullName}
                 onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                 required
@@ -119,7 +124,7 @@ const Register = () => {
               />
               <Input 
                 label="Organization" 
-                placeholder="CodeX Labs" 
+                placeholder="Enterprise Corp" 
                 value={formData.organization}
                 onChange={(e) => setFormData({...formData, organization: e.target.value})}
                 required
@@ -127,7 +132,7 @@ const Register = () => {
               />
               <Input 
                 label="Industry" 
-                placeholder="FinTech / SaaS" 
+                placeholder="Cybersecurity / Finance" 
                 value={formData.industry}
                 onChange={(e) => setFormData({...formData, industry: e.target.value})}
                 disabled={isLoading}
@@ -145,9 +150,9 @@ const Register = () => {
                 />
               </div>
 
-              <div className="md:col-span-2 flex items-start gap-3 p-4 bg-cobalt-bg rounded-xl border border-cobalt-border">
+              <div className="md:col-span-2 flex items-start gap-3 p-4 bg-cobalt-bg/50 rounded-xl border border-white/5">
                 <CheckCircle2 className="text-cobalt-accent mt-0.5 shrink-0" size={18} />
-                <p className="text-xs text-cobalt-muted leading-relaxed font-medium">
+                <p className="text-[11px] text-cobalt-muted leading-relaxed font-medium italic">
                   By creating an account, you agree to our <span className="text-white underline cursor-pointer hover:text-cobalt-accent transition-colors">Data Privacy Policy</span> and authorize AuditShield to perform scans.
                 </p>
               </div>
@@ -155,12 +160,12 @@ const Register = () => {
               <Button 
                 type="submit"
                 disabled={isLoading}
-                className="md:col-span-2 py-4 font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+                className="md:col-span-2 py-4 font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="animate-spin" size={18} />
-                    Processing...
+                    Processing Handshake...
                   </>
                 ) : (
                   "Create AuditShield Account"
@@ -170,9 +175,9 @@ const Register = () => {
           )}
 
           {!isSuccess && (
-            <p className="text-center mt-8 text-sm text-cobalt-muted font-medium">
+            <p className="text-center mt-8 text-xs text-cobalt-muted font-medium">
               Already registered?{' '}
-              <Link to="/auth" className="text-cobalt-accent font-bold hover:underline transition-all">Access Dashboard</Link>
+              <Link to="/auth" className="text-cobalt-accent font-bold hover:underline transition-all uppercase tracking-widest">Access Dashboard</Link>
             </p>
           )}
         </div>
@@ -181,4 +186,4 @@ const Register = () => {
   )
 }
 
-export default Register
+export default Register;

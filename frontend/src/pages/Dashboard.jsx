@@ -8,12 +8,12 @@ import Navbar from '../components/layout/Navbar';
 import ScoreGauge from '../components/dashboard/ScoreGauge';
 import RiskTrendChart from '../components/dashboard/RiskTrendChart';
 import AlertCard from '../components/alerts/AlertCard';
-import RemediationAgent from '../components/alerts/RemediationAgent';
 import { 
-  ShieldAlert, Globe, Activity, 
-  RefreshCw, ShieldCheck, Database, Search, 
-  ArrowUpRight, Zap, Clock, Terminal
+  RefreshCw, ArrowUpRight 
 } from 'lucide-react';
+
+// Accessing the environment variable
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -26,9 +26,10 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setIsRefreshing(true);
     try {
+      // Using the dynamic API_BASE_URL from .env
       const [alertRes, repoRes] = await Promise.all([
-        fetch("http://localhost:5000/api/alerts/recent?t=" + Date.now()),
-        fetch("http://localhost:5000/repo/list")
+        fetch(`${API_BASE_URL}/api/alerts/recent?t=${Date.now()}`),
+        fetch(`${API_BASE_URL}/repo/list`)
       ]);
 
       const alertData = await alertRes.json();
@@ -40,6 +41,7 @@ const Dashboard = () => {
       console.error("Error fetching dashboard data:", err);
     } finally {
       setLoading(false);
+      // Brief delay for the animation feel
       setTimeout(() => setIsRefreshing(false), 800);
     }
   };
@@ -63,11 +65,6 @@ const Dashboard = () => {
   const containerVars = {
     initial: { opacity: 0 },
     animate: { opacity: 1, transition: { staggerChildren: 0.08 } }
-  };
-
-  const itemVars = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 }
   };
 
   return (
@@ -96,85 +93,104 @@ const Dashboard = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <input placeholder="Search..." className="bg-white/5 px-3 py-2 rounded-lg text-sm" />
-              <button onClick={fetchDashboardData}>
-                <RefreshCw className={isRefreshing ? "animate-spin" : ""} />
+              <input 
+                placeholder="Search..." 
+                className="bg-white/5 px-4 py-2 rounded-lg text-sm border border-white/10 focus:outline-none focus:border-cobalt-accent transition-colors" 
+              />
+              <button 
+                onClick={fetchDashboardData}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <RefreshCw className={isRefreshing ? "animate-spin text-cobalt-accent" : ""} size={20} />
               </button>
             </div>
           </div>
 
-          {/* SCORE */}
+          {/* SCORE SECTION */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="p-6 bg-white/5 rounded-xl">
-              <h3 className="text-sm text-gray-400">Security Score</h3>
-              <h2 className="text-5xl font-bold">{securityScore}/100</h2>
-              <p className="text-sm text-gray-400">
-                System scan complete. {securityScore > 90 ? "Your system is safe." : "Some risks found."}
+            <div className="p-8 bg-white/5 rounded-xl border border-white/10 flex flex-col justify-center">
+              <h3 className="text-sm text-gray-400 uppercase tracking-wider mb-2">Security Score</h3>
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-6xl font-extrabold">{securityScore}</h2>
+                <span className="text-2xl text-gray-500">/ 100</span>
+              </div>
+              <p className="mt-4 text-gray-400 italic">
+                {securityScore > 90 
+                  ? "✓ All protocols within safe parameters." 
+                  : "⚠ Action required on critical vulnerabilities."}
               </p>
             </div>
 
-            <div className="flex justify-center items-center">
+            <div className="flex justify-center items-center bg-white/5 rounded-xl border border-white/10 p-6">
               <ScoreGauge score={parseFloat(securityScore)} />
             </div>
           </div>
 
-          {/* STATS */}
+          {/* STATS GRID */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="p-4 bg-white/5 rounded-lg">
-              <p>Repositories</p>
-              <h3>{repos.length}</h3>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg">
-              <p>Files Scanned</p>
-              <h3>12.4K</h3>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg">
-              <p>Alerts</p>
-              <h3>{alerts.length}</h3>
-            </div>
-            <div className="p-4 bg-white/5 rounded-lg">
-              <p>System Health</p>
-              <h3>99.9%</h3>
-            </div>
+            {[
+              { label: 'Repositories', value: repos.length },
+              { label: 'Files Scanned', value: '12.4K' },
+              { label: 'Total Alerts', value: alerts.length },
+              { label: 'System Health', value: '99.9%' }
+            ].map((stat, idx) => (
+              <div key={idx} className="p-6 bg-white/5 rounded-xl border border-white/10">
+                <p className="text-xs text-gray-400 uppercase mb-1">{stat.label}</p>
+                <h3 className="text-2xl font-bold">{stat.value}</h3>
+              </div>
+            ))}
           </div>
 
           {/* CHART */}
-          <div className="p-6 bg-white/5 rounded-xl">
-            <h3>Security Activity</h3>
+          <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+            <h3 className="text-lg font-semibold mb-6">Security Activity Trend</h3>
             <RiskTrendChart />
           </div>
 
-          {/* ALERTS */}
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h3>Recent Alerts</h3>
-              <button onClick={() => navigate('/logs')}>
-                View All <ArrowUpRight size={14}/>
+          {/* ALERTS SECTION */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Recent Security Alerts</h3>
+              <button 
+                onClick={() => navigate('/logs')}
+                className="flex items-center gap-2 text-sm text-cobalt-accent hover:underline"
+              >
+                View Audit Logs <ArrowUpRight size={16}/>
               </button>
             </div>
 
-            {loading ? (
-              <p>Loading...</p>
-            ) : alerts.length > 0 ? (
-              alerts.map((alert, i) => (
-                <AlertCard
-                  key={i}
-                  severity={alert.risk}
-                  title={alert.message}
-                  description={alert.reason}
-                  time={alert.created_at}
-                />
-              ))
-            ) : (
-              <p>No security issues found.</p>
-            )}
+            <div className="space-y-3">
+              {loading ? (
+                <div className="flex items-center gap-2 text-gray-400">
+                  <RefreshCw className="animate-spin" size={16} /> Scanning system...
+                </div>
+              ) : alerts.length > 0 ? (
+                alerts.map((alert, i) => (
+                  <AlertCard
+                    key={i}
+                    severity={alert.risk}
+                    title={alert.message}
+                    description={alert.reason}
+                    time={alert.created_at}
+                  />
+                ))
+              ) : (
+                <div className="p-10 text-center bg-white/5 rounded-xl border border-dashed border-white/20 text-gray-500">
+                  No active security threats detected.
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* SYSTEM HEALTH */}
-          <div className="p-6 bg-white/5 rounded-xl">
-            <h3>System Health</h3>
-            <p>CPU Usage: Normal</p>
-            <p>Response Time: Fast</p>
+          {/* SYSTEM HEALTH FOOTER */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/5 rounded-xl border border-white/10">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-400 mb-2">Engine Status</h3>
+              <div className="flex gap-4 text-sm">
+                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"/> CPU: Normal</span>
+                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"/> Latency: 24ms</span>
+              </div>
+            </div>
           </div>
 
         </motion.main>

@@ -1,4 +1,6 @@
-const API_URL = 'http://localhost:5000/repo';
+// Accessing the environment variable for deployment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_URL = `${API_BASE_URL}/repo`;
 
 export const connectRepo = async (repo, token) => {
   const response = await fetch(`${API_URL}/connect`, {
@@ -6,6 +8,7 @@ export const connectRepo = async (repo, token) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ repo, token })
   });
+  
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Connection failed');
   return data;

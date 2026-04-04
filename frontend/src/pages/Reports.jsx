@@ -10,6 +10,9 @@ import {
   Zap, Cpu, RefreshCcw, Database
 } from 'lucide-react'
 
+// Accessing the environment variable for deployment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const Reports = () => {
   const [loading, setLoading] = useState(true)
   const [logs, setLogs] = useState([])
@@ -41,11 +44,11 @@ const Reports = () => {
     setLogs(rawData);
   };
 
-  const fetchFullAuditData = async (forceRefresh = false) => {
+  const fetchFullAuditData = async () => {
     setLoading(true);
     try {
-      // Using the live alerts route from Logs page to get the most recent data
-      const res = await fetch(`http://localhost:5000/api/alerts?t=${Date.now()}`);
+      // Updated with the deployment API_BASE_URL
+      const res = await fetch(`${API_BASE_URL}/api/alerts?t=${Date.now()}`);
       const data = await res.json();
       
       if (res.ok) {
@@ -126,7 +129,7 @@ const Reports = () => {
               </p>
             </div>
             <div className="flex gap-4">
-              <button onClick={() => fetchFullAuditData(true)} className="px-6 py-3 bg-white/5 rounded-xl border border-white/10 text-[10px] font-black uppercase text-white hover:bg-white/10 transition-all flex items-center gap-2">
+              <button onClick={() => fetchFullAuditData()} className="px-6 py-3 bg-white/5 rounded-xl border border-white/10 text-[10px] font-black uppercase text-white hover:bg-white/10 transition-all flex items-center gap-2">
                 <RefreshCcw size={14} /> Refresh Data
               </button>
               <Button onClick={handlePrint} className="px-8 py-4 bg-cobalt-accent text-cobalt-bg font-black uppercase tracking-[0.2em] text-[11px]">
@@ -164,7 +167,7 @@ const Reports = () => {
                ))}
             </section>
 
-            {/* DETAILED TABLES - ONE PER SOURCE */}
+            {/* DETAILED TABLES */}
             <LogTable title="GitHub Repositories" logItems={getLogsBySource('github')} />
             <LogTable title="Google Drive Storage" logItems={getLogsBySource('drive')} />
             <LogTable title="System Documents" logItems={getLogsBySource('document')} />
@@ -205,4 +208,4 @@ const Reports = () => {
   )
 }
 
-export default Reports
+export default Reports;

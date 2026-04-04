@@ -8,28 +8,32 @@ import {
   Upload, FileText, ShieldAlert, CheckCircle2, 
   Loader2, Trash2, Search, AlertTriangle, 
   ShieldCheck, ArrowRight, BarChart3, Fingerprint,
-  CheckCircle, Filter, Terminal, Zap, Cpu // ✅ Fixed: Added missing Terminal, Zap, and Cpu
+  CheckCircle, Filter, Terminal, Zap, Cpu 
 } from 'lucide-react'
+
+// Accessing the environment variable for deployment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const DocumentAudit = () => {
   const [file, setFile] = useState(null)
   const [isUploading, setIsUploading] = useState(false)
   const [scanResult, setScanResult] = useState(null)
   const [auditLogs, setAuditLogs] = useState([])
-  const [filter, setFilter] = useState('All') // All | Critical | Resolved
+  const [filter, setFilter] = useState('All')
 
-  // 🔄 Fetch Document-specific history
+  // 🔄 Fetch Document-specific history using API_BASE_URL
   const fetchDocLogs = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/alerts?source=document")
+      const res = await fetch(`${API_BASE_URL}/api/alerts?source=document`)
       const data = await res.json()
       setAuditLogs(data || [])
-    } catch (err) { console.error("Audit Trace Failure:", err) }
+    } catch (err) { 
+      console.error("Audit Trace Failure:", err) 
+    }
   }
 
   useEffect(() => { fetchDocLogs() }, [])
 
-  // 📊 Dynamic Stats Calculation
   const stats = useMemo(() => {
     const uniqueFiles = new Set(auditLogs.map(log => log.filename)).size;
     return {
@@ -44,7 +48,7 @@ const DocumentAudit = () => {
     const selectedFile = e.target.files[0]
     if (selectedFile) {
       setFile(selectedFile)
-      setScanResult(null) // Reset previous mini-result
+      setScanResult(null)
     }
   }
 
@@ -57,15 +61,15 @@ const DocumentAudit = () => {
     formData.append('document', file)
 
     try {
-      const res = await fetch("http://localhost:5000/api/upload", {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: "POST",
         body: formData,
       })
       const data = await res.json()
 
       if (res.ok) {
-        setScanResult(data) // Store Groq AI details
-        await fetchDocLogs() // Refresh history
+        setScanResult(data)
+        await fetchDocLogs()
         
         Swal.fire({
           icon: data.findings > 0 ? 'warning' : 'success',
@@ -84,7 +88,7 @@ const DocumentAudit = () => {
 
   const handleResolve = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/alerts/${id}/resolve`, {
+      const res = await fetch(`${API_BASE_URL}/api/alerts/${id}/resolve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' }
       })
@@ -101,9 +105,9 @@ const DocumentAudit = () => {
   return (
     <div className="min-h-screen bg-cobalt-bg text-white selection:bg-cobalt-accent/30">
       <Sidebar />
-      <div className="ml-64">
+      <div className="ml-0 md:ml-64 flex flex-col min-h-screen">
         <Navbar />
-        <main className="p-8 space-y-8 animate-in fade-in duration-700">
+        <main className="p-8 space-y-8 animate-in fade-in duration-700 max-w-[1600px] mx-auto w-full">
           
           {/* --- HEADER --- */}
           <div className="flex justify-between items-end">
@@ -162,7 +166,6 @@ const DocumentAudit = () => {
                   </div>
                 )}
 
-                {/* MINI RESULT BANNER */}
                 {scanResult && !isUploading && (
                   <div className={`mb-6 w-full p-3 rounded-xl border font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2 animate-in slide-in-from-top-2
                     ${scanResult.findings > 0 ? 'bg-risk-high/10 border-risk-high/30 text-risk-high' : 'bg-risk-low/10 border-risk-low/30 text-risk-low'}`}>
@@ -184,7 +187,6 @@ const DocumentAudit = () => {
                 </Button>
               </Card>
 
-              {/* DYNAMIC SCAN DETAILS (Expanded results from Groq) */}
               {scanResult?.details && (
                 <div className="space-y-3 animate-in slide-in-from-bottom-4">
                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-cobalt-muted ml-2">Neural Findings Detail</h4>
@@ -219,7 +221,6 @@ const DocumentAudit = () => {
                       <Terminal size={14} className="text-cobalt-accent"/> Audit Execution Trail
                     </h4>
                     
-                    {/* FILTER TOGGLE */}
                     <div className="flex bg-cobalt-bg p-1 rounded-lg border border-cobalt-border">
                       {['All', 'Critical', 'Resolved'].map((f) => (
                         <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all rounded-md
@@ -268,7 +269,6 @@ const DocumentAudit = () => {
                   </div>
                </div>
 
-               {/* Engine Health Widget */}
                <Card className="p-6 bg-gradient-to-r from-cobalt-accent/10 to-transparent border-cobalt-accent/20 rounded-3xl flex items-center gap-6 relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-4 opacity-5"><Cpu size={100} /></div>
                   <div className="p-4 bg-cobalt-accent/20 rounded-2xl text-cobalt-accent shadow-[0_0_15px_rgba(56,189,248,0.2)]"><Zap size={28}/></div>
@@ -305,4 +305,4 @@ const RefreshCw = ({ className, size }) => (
   <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
 )
 
-export default DocumentAudit
+export default DocumentAudit;

@@ -3,6 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { RefreshCw, Activity } from 'lucide-react';
 import Swal from 'sweetalert2';
 
+// Accessing the environment variable for deployment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const DriveCallback = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,8 +25,8 @@ const DriveCallback = () => {
       try {
         console.log("📡 [DRIVE_CALLBACK] Handshake Initialized. Exchanging code...");
 
-        // 2. Exchange code for real tokens at the backend
-        const response = await fetch("http://localhost:5000/api/drive/callback", {
+        // 2. Exchange code for real tokens at the backend using the dynamic API_BASE_URL
+        const response = await fetch(`${API_BASE_URL}/api/drive/callback`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code }),
@@ -39,14 +42,16 @@ const DriveCallback = () => {
           
           // Store the token and the refresh token if provided
           localStorage.setItem("google_drive_token", finalToken);
-          if (data.refresh_token || data.tokens?.refresh_token) {
-            localStorage.setItem("google_drive_refresh_token", data.refresh_token || data.tokens.refresh_token);
+          
+          const refreshToken = data.refresh_token || data.tokens?.refresh_token;
+          if (refreshToken) {
+            localStorage.setItem("google_drive_refresh_token", refreshToken);
           }
 
           // 🚀 Success: Launch the Audit Dashboard
           navigate("/drive-audit");
         } else {
-          // 🛑 ERROR HANDLING: This will now tell us WHY it failed
+          // 🛑 ERROR HANDLING
           console.error("❌ [DRIVE_CALLBACK] Handshake Failure:", data);
           
           await Swal.fire({
@@ -71,12 +76,14 @@ const DriveCallback = () => {
 
   return (
     <div className="min-h-screen bg-cobalt-bg flex flex-col items-center justify-center text-white font-sans">
+      {/* Visual Loader */}
       <div className="relative mb-8">
         <div className="absolute -inset-4 bg-cobalt-accent/20 rounded-full blur-xl animate-pulse"></div>
         <RefreshCw className="relative text-cobalt-accent animate-spin" size={60} />
         <Activity className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/50" size={20} />
       </div>
       
+      {/* Status Messages */}
       <div className="text-center space-y-3">
         <h2 className="text-[10px] font-black uppercase tracking-[0.6em] text-cobalt-accent animate-pulse">
           Initializing_Neural_Handshake
@@ -90,9 +97,9 @@ const DriveCallback = () => {
         </div>
       </div>
 
-      {/* Background HUD elements for the 'Elite' look */}
+      {/* Background HUD elements */}
       <div className="fixed bottom-10 left-10 opacity-10 font-mono text-[8px] uppercase tracking-tighter">
-        Trace_ID: {Math.random().toString(16).slice(2, 10)}<br />
+        Trace_ID: {Math.random().toString(16).slice(2, 10).toUpperCase()}<br />
         Protocol: OAuth_2.0_Secure_Tunnel
       </div>
     </div>

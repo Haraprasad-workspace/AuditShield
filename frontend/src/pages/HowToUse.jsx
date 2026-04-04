@@ -6,7 +6,7 @@ import Sidebar from '../components/layout/Sidebar'
 import Navbar from '../components/layout/Navbar'
 import { 
   Globe, HardDrive, ShieldAlert, Cpu, CheckCircle2, 
-  Lock, Database, Layers, Fingerprint, Zap, Eye,
+  Database, Fingerprint, Zap, 
   RefreshCcw, ArrowRight
 } from 'lucide-react'
 
@@ -73,43 +73,44 @@ const HowToUse = () => {
       <div className="ml-0 md:ml-64 flex flex-col min-h-screen">
         <Navbar />
 
-        <main className="flex-1 flex flex-col items-center justify-center p-10 relative">
+        <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-10 relative">
           
-          {/* Background */}
+          {/* Background Decorative Element */}
           <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
             <Database size={600} className="text-white/5 rotate-12" />
           </div>
 
-          {/* Header — now in flow above the card */}
-          <div className="text-center space-y-4 mb-8">
+          {/* Header */}
+          <div className="text-center space-y-4 mb-8 z-10">
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               className="inline-flex items-center gap-2 px-4 py-1 bg-white/5 border border-white/10 rounded-full text-[9px] font-bold uppercase tracking-widest text-cobalt-accent"
             >
-              <Zap size={10} className="animate-pulse" /> Swipe to Navigate
+              <Zap size={10} className="animate-pulse" /> Swipe or Click Arrow to Navigate
             </motion.div>
 
-            <h1 className="text-5xl font-heading font-black tracking-tighter uppercase italic">
+            <h1 className="text-4xl md:text-5xl font-heading font-black tracking-tighter uppercase italic">
               How It <span className="text-cobalt-accent">Works</span>
             </h1>
           </div>
 
-          {/* Card */}
-          <div className="relative w-full max-w-[500px] h-[600px] flex items-center justify-center">
+          {/* Card Container */}
+          <div className="relative w-full max-w-[500px] h-[550px] md:h-[600px] flex items-center justify-center z-10">
             <AnimatePresence mode="wait">
               <motion.div
                 key={index}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 onDragEnd={(e, info) => {
-                  if (Math.abs(info.offset.x) > 100) nextCard();
+                  if (info.offset.x < -100) nextCard();
+                  if (info.offset.x > 100) setIndex((prev) => (prev - 1 + docsContent.length) % docsContent.length);
                 }}
                 initial={{ scale: 0.9, opacity: 0, x: 100 }}
                 animate={{ scale: 1, opacity: 1, x: 0 }}
                 exit={{ scale: 0.9, opacity: 0, x: -100 }}
                 transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                className="absolute w-full h-full bg-cobalt-surface/30 border border-white/10 rounded-[3.5rem] p-10 shadow-2xl backdrop-blur-3xl cursor-grab active:cursor-grabbing flex flex-col justify-between"
+                className="absolute w-full h-full bg-cobalt-surface/30 border border-white/10 rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-10 shadow-2xl backdrop-blur-3xl cursor-grab active:cursor-grabbing flex flex-col justify-between"
               >
                 <div>
                   <div className="flex justify-between items-center mb-8">
@@ -119,7 +120,7 @@ const HowToUse = () => {
                     <span className="text-4xl font-black text-white/5">{currentData.step}</span>
                   </div>
 
-                  <h3 className="text-3xl font-bold text-white mb-2">
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
                     {currentData.title}
                   </h3>
                   <p className="text-cobalt-accent text-sm mb-6">{currentData.description}</p>
@@ -127,9 +128,9 @@ const HowToUse = () => {
                   <div className="space-y-6">
                     <div>
                       <h4 className="text-sm font-semibold text-white/70 mb-2 flex items-center gap-2">
-                        <Fingerprint size={14}/> How it works internally
+                        <Fingerprint size={14}/> Internal Protocol
                       </h4>
-                      <p className="text-sm text-cobalt-muted">
+                      <p className="text-sm text-cobalt-muted leading-relaxed">
                         {currentData.internalLogic}
                       </p>
                     </div>
@@ -146,12 +147,12 @@ const HowToUse = () => {
                 </div>
 
                 <div className="mt-6 flex items-center justify-between">
-                   <div className="p-3 bg-black/40 border border-white/5 rounded-xl text-sm text-cobalt-accent flex-1 mr-4">
+                   <div className="p-3 bg-black/40 border border-white/5 rounded-xl text-[10px] md:text-sm text-cobalt-accent flex-1 mr-4 font-mono truncate">
                       {currentData.codeSnippet}
                    </div>
                    <button 
                     onClick={nextCard}
-                    className="p-3 bg-cobalt-accent text-cobalt-bg rounded-xl hover:scale-105 transition-all"
+                    className="p-3 bg-cobalt-accent text-cobalt-bg rounded-xl hover:scale-105 transition-all shadow-lg shadow-cobalt-accent/20"
                    >
                     <ArrowRight size={18} />
                    </button>
@@ -160,17 +161,19 @@ const HowToUse = () => {
             </AnimatePresence>
           </div>
 
-          {/* Progress */}
-          <div className="absolute bottom-10 flex gap-3 items-center">
+          {/* Progress Indicators */}
+          <div className="absolute bottom-10 flex gap-3 items-center z-10">
             {docsContent.map((_, i) => (
-              <div 
-                key={i} 
-                className={`h-1.5 rounded-full ${index === i ? 'w-10 bg-cobalt-accent' : 'w-2 bg-white/10'}`}
+              <button
+                key={i}
+                onClick={() => setIndex(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${index === i ? 'w-10 bg-cobalt-accent' : 'w-2 bg-white/10 hover:bg-white/30'}`}
               />
             ))}
             <button 
                 onClick={() => setIndex(0)} 
-                className="ml-4 p-2 text-cobalt-muted hover:text-white"
+                className="ml-4 p-2 text-cobalt-muted hover:text-white transition-colors"
+                title="Reset Tour"
             >
                 <RefreshCcw size={14} />
             </button>
@@ -182,4 +185,4 @@ const HowToUse = () => {
   )
 }
 
-export default HowToUse
+export default HowToUse;

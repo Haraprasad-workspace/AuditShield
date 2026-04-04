@@ -14,6 +14,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 
+// Accessing the environment variable for deployment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 // --- TREE COMPONENT ---
 const TreeItem = ({ item, level = 0, onSelect, selectedId }) => {
   const [isOpen, setIsOpen] = useState(level < 1);
@@ -88,7 +91,7 @@ const DriveAudit = () => {
     if (!googleToken) { setLoading(false); return; }
 
     try {
-      const res = await fetch("http://localhost:5000/api/drive/audit", {
+      const res = await fetch(`${API_BASE_URL}/api/drive/audit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: currentUserId, token: googleToken })
@@ -102,11 +105,13 @@ const DriveAudit = () => {
           warning: data.stats?.warning || 0 
         });
       }
-    } catch (err) { console.error("Discovery Failed:", err.message); }
-    finally { setLoading(false); }
+    } catch (err) { 
+      console.error("Discovery Failed:", err.message); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  // --- REACTION LOGIC (FIXED) ---
   const handleRemediate = async (fileId, type) => {
     const googleToken = localStorage.getItem("google_drive_token");
     const endpoint = type === 'revoke' ? 'revoke' : 'delete';
@@ -121,7 +126,7 @@ const DriveAudit = () => {
     });
 
     try {
-      const res = await fetch(`http://localhost:5000/api/drive/${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}/api/drive/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: googleToken, fileId })

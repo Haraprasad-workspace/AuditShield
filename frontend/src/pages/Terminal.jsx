@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, ChevronRight, Apple, Globe } from 'lucide-react';
+import { Shield, Apple, Globe } from 'lucide-react';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
+
+// Accessing the environment variable for deployment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const Terminal = () => {
   const [input, setInput] = useState('');
@@ -57,7 +60,8 @@ const Terminal = () => {
           output.content = 'Error: Missing source flag. Usage: logs --github or logs --drive';
         } else {
           try {
-            const res = await fetch(`http://localhost:5000/api/alerts?source=${source}`);
+            // Using API_BASE_URL for deployment readiness
+            const res = await fetch(`${API_BASE_URL}/api/alerts?source=${source}`);
             const data = await res.json();
             
             if (data.length === 0) {
@@ -136,7 +140,7 @@ const Terminal = () => {
                         <span className="text-white">{line.content}</span>
                       </div>
                     ) : line.type === 'output' ? (
-                      <pre className="text-green-400 whitespace-pre-wrap ml-4 my-2 opacity-90 border-l border-white/5 pl-4">
+                      <pre className="text-green-400 whitespace-pre-wrap ml-4 my-2 opacity-90 border-l border-white/5 pl-4 font-mono">
                         {line.content}
                       </pre>
                     ) : line.type === 'header' ? (

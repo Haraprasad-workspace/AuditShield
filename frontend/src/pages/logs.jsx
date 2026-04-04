@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion'; // Added for animations
+import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '../components/layout/Sidebar';
 import Navbar from '../components/layout/Navbar';
 import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
 import Swal from 'sweetalert2';
 import { 
   Terminal, Search, Cpu, Database, 
@@ -13,6 +12,9 @@ import {
   ChevronLeft, ChevronRight, FileText, CheckCircle,
   Zap, Activity
 } from 'lucide-react';
+
+// Accessing the environment variable for deployment
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const LogEntry = ({ id, timestamp, source, event, status, resolved, onResolve, index }) => {
   const sourceIcons = {
@@ -88,7 +90,8 @@ const Logs = () => {
   const fetchLogs = async (isAutoRefresh = false) => {
     if (!isAutoRefresh) setIsRefreshing(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/alerts?t=${Date.now()}`);
+      // Updated with the deployment API_BASE_URL
+      const res = await fetch(`${API_BASE_URL}/api/alerts?t=${Date.now()}`);
       const data = await res.json();
       if (res.ok) {
         const formattedLogs = data.map(item => ({
@@ -128,7 +131,7 @@ const Logs = () => {
 
   const handleResolve = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/alerts/${id}/resolve`, {
+      const res = await fetch(`${API_BASE_URL}/api/alerts/${id}/resolve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' }
       });

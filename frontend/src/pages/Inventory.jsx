@@ -11,7 +11,11 @@ import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
 import { Zap, CheckCircle2, Trash2, ShieldCheck, Activity, Globe, ExternalLink } from "lucide-react";
 
-// --- FIXED: Brand Logos ---
+// Environment Variables
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const FRONTEND_URL = window.location.origin; // Dynamically gets current URL (localhost or deployed domain)
+
+// --- Brand Logos ---
 const GitHubLogo = ({ size = 24, ...props }) => (
   <svg {...props} width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577v-2.234c-3.338.724-4.033-1.61-4.033-1.61-.546-1.385-1.334-1.754-1.334-1.754-1.09-.746.082-.73.082-.73 1.205.085 1.838 1.236 1.838 1.236 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.76-1.605-2.665-.304-5.466-1.334-5.466-5.933 0-1.31.47-2.38 1.236-3.22-.124-.304-.536-1.527.116-3.182 0 0 1.008-.322 3.3 1.23a11.5 11.5 0 013-.403c1.02.005 2.043.138 3 .403 2.29-1.552 3.296-1.23 3.296-1.23.655 1.655.243 2.878.12 3.182.77.84 1.236 1.91 1.236 3.22 0 4.61-2.807 5.625-5.478 5.922.43.37.815 1.1.815 2.22v3.293c0 .32.218.694.825.576C20.565 21.796 24 17.296 24 12c0-6.63-5.37-12-12-12z" />
@@ -105,7 +109,7 @@ const Inventory = () => {
 
   const fetchRepos = async () => {
     try {
-      const res = await fetch("http://localhost:5000/repo/list");
+      const res = await fetch(`${API_BASE_URL}/repo/list`);
       const data = await res.json();
       if (res.ok) setMonitoredRepos(data.repos?.map((r) => r.repo) || []);
     } catch (err) { console.error(err); }
@@ -115,7 +119,7 @@ const Inventory = () => {
     e.preventDefault();
     setIsConnecting(true);
     try {
-      const res = await fetch("http://localhost:5000/repo/connect", {
+      const res = await fetch(`${API_BASE_URL}/repo/connect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo: repoName, token: ghToken }),
@@ -138,7 +142,7 @@ const Inventory = () => {
     } else {
       const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
       const options = {
-        redirect_uri: "http://localhost:5173/drive-callback",
+        redirect_uri: `${FRONTEND_URL}/drive-callback`, // Dynamically uses current frontend URL
         client_id: "124506016301-47ppcaa1pu2bpvr4d6h5dtbiu65e2u05.apps.googleusercontent.com", 
         access_type: "offline",
         response_type: "code",
@@ -167,7 +171,7 @@ const Inventory = () => {
     });
     if (result.isConfirmed) {
       try {
-        const res = await fetch("http://localhost:5000/repo/disconnect", {
+        const res = await fetch(`${API_BASE_URL}/repo/disconnect`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ repo: name }),
@@ -180,7 +184,6 @@ const Inventory = () => {
     }
   };
 
-  // ✅ FIXED: Drive Disconnect logic
   const handleDisconnectDrive = async () => {
     const result = await Swal.fire({
       title: "Deauthorize Cloud Vector?",
@@ -205,9 +208,9 @@ const Inventory = () => {
   return (
     <div className="min-h-screen bg-cobalt-bg selection:bg-cobalt-accent/30 font-sans">
       <Sidebar />
-      <div className="ml-64">
+      <div className="ml-0 md:ml-64 flex flex-col min-h-screen">
         <Navbar />
-        <main className="p-10 max-w-[1400px] mx-auto space-y-12">
+        <main className="p-8 lg:p-12 max-w-[1400px] mx-auto space-y-12 w-full">
           
           <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b border-white/5 pb-10">
             <div className="space-y-1">
@@ -263,7 +266,6 @@ const Inventory = () => {
                   <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em] flex items-center gap-3 italic"><Zap size={16} className="text-cobalt-accent fill-cobalt-accent/20"/> Active_Scanners</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     
-                    {/* Google Drive Active Scanner Card */}
                     {driveConnected && (
                        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center justify-between p-6 bg-cobalt-accent/5 border border-cobalt-accent/20 rounded-[2rem] shadow-xl backdrop-blur-sm group transition-all hover:border-cobalt-accent/40">
                          <div className="flex items-center gap-5">
@@ -286,7 +288,6 @@ const Inventory = () => {
                        </motion.div>
                     )}
 
-                    {/* GitHub Repo Scanners */}
                     {monitoredRepos.map((repo, i) => (
                       <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center justify-between p-6 bg-cobalt-surface/40 border border-white/5 rounded-[2rem] group transition-all hover:border-cobalt-accent/30 shadow-2xl backdrop-blur-sm">
                         <div className="flex items-center gap-5">

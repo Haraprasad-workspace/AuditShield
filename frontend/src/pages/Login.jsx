@@ -1,7 +1,9 @@
+"use client";
+
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Shield, ArrowRight, Lock, AlertCircle, Loader2 } from 'lucide-react'
-import Swal from 'sweetalert2' // Import SweetAlert2
+import { Shield, ArrowRight, Lock, Loader2 } from 'lucide-react'
+import Swal from 'sweetalert2'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import { login } from '../api/auth'
@@ -19,7 +21,7 @@ const Login = () => {
     showConfirmButton: false,
     timer: 3000,
     timerProgressBar: true,
-    background: '#0B1221', // Cobalt Surface
+    background: '#0B1221', 
     color: '#FFFFFF',
     didOpen: (toast) => {
       toast.addEventListener('mouseenter', Swal.stopTimer)
@@ -32,10 +34,18 @@ const Login = () => {
     setIsLoading(true)
 
     try {
+      // The login function here should use import.meta.env.VITE_API_BASE_URL 
+      // inside your ../api/auth.js file.
       const data = await login({ email, password })
       
+      // Store session data
       localStorage.setItem('auditshield_token', data.session.access_token)
       localStorage.setItem('auditshield_user', JSON.stringify(data.user))
+      
+      // Also store user ID for other components (like DriveAudit) to use
+      if (data.user?.id) {
+        localStorage.setItem('auditshield_user_id', data.user.id)
+      }
       
       // ✅ Success Alert
       await Toast.fire({
@@ -43,7 +53,7 @@ const Login = () => {
         title: 'Authorization Granted',
         text: 'Syncing with perimeter guard...',
         background: '#0B1221',
-        iconColor: '#10B981' // risk-low green
+        iconColor: '#10B981'
       })
 
       navigate('/dashboard')
@@ -51,12 +61,12 @@ const Login = () => {
       // ❌ Error Alert
       Swal.fire({
         title: 'Access Denied',
-        text: err.message,
+        text: err.message || "Invalid credentials or server timeout.",
         icon: 'error',
         background: '#0B1221',
         color: '#FFFFFF',
-        confirmButtonColor: '#38BDF8', // cobalt-accent
-        iconColor: '#FF4B5C', // risk-high red
+        confirmButtonColor: '#38BDF8',
+        iconColor: '#FF4B5C',
         customClass: {
           popup: 'border border-cobalt-border rounded-2xl shadow-2xl',
           title: 'text-xl font-heading font-bold uppercase tracking-tight',
@@ -82,7 +92,7 @@ const Login = () => {
           <h1 className="text-3xl font-heading font-bold text-white uppercase tracking-tighter">
             Welcome Back
           </h1>
-          <p className="text-cobalt-muted mt-2 text-center">
+          <p className="text-cobalt-muted mt-2 text-center text-sm">
             Secure access to your compliance dashboard
           </p>
         </div>
@@ -101,7 +111,7 @@ const Login = () => {
 
             <div className="space-y-1">
               <div className="flex justify-between items-center px-1">
-                <label className="text-xs uppercase tracking-widest text-cobalt-muted font-bold">
+                <label className="text-[10px] uppercase tracking-widest text-cobalt-muted font-bold">
                   Password
                 </label>
                 <Link
@@ -125,7 +135,7 @@ const Login = () => {
             <Button 
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 font-bold uppercase tracking-widest text-sm mt-2 flex items-center justify-center gap-2"
+              className="w-full py-4 font-bold uppercase tracking-widest text-xs mt-4 flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
@@ -142,16 +152,16 @@ const Login = () => {
 
           <div className="relative my-8">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-cobalt-border"></div>
+              <div className="w-full border-t border-cobalt-border/50"></div>
             </div>
-            <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em]">
+            <div className="relative flex justify-center text-[9px] uppercase font-bold tracking-[0.2em]">
               <span className="bg-cobalt-surface px-4 text-cobalt-muted">
                 AuditShield Secure Login
               </span>
             </div>
           </div>
 
-          <p className="text-center mt-8 text-sm text-cobalt-muted">
+          <p className="text-center mt-4 text-xs text-cobalt-muted">
             New to the platform?{' '}
             <Link
               to="/register"
@@ -162,7 +172,7 @@ const Login = () => {
           </p>
         </div>
 
-        <div className="mt-8 flex justify-center items-center gap-2 text-[10px] text-cobalt-muted uppercase font-bold tracking-widest">
+        <div className="mt-8 flex justify-center items-center gap-2 text-[9px] text-cobalt-muted uppercase font-bold tracking-widest">
           <Lock size={12} /> AES-256 Encrypted Connection
         </div>
       </div>
@@ -170,4 +180,4 @@ const Login = () => {
   )
 }
 
-export default Login
+export default Login;
