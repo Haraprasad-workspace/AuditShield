@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { RefreshCw, Activity } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-// Accessing the environment variable for deployment
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const DriveCallback = () => {
@@ -12,7 +11,6 @@ const DriveCallback = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
-      // 1. Extract the 'code' and other params from the URL
       const params = new URLSearchParams(location.search);
       const code = params.get('code');
 
@@ -25,7 +23,6 @@ const DriveCallback = () => {
       try {
         console.log("📡 [DRIVE_CALLBACK] Handshake Initialized. Exchanging code...");
 
-        // 2. Exchange code for real tokens at the backend using the dynamic API_BASE_URL
         const response = await fetch(`${API_BASE_URL}/api/drive/callback`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -33,14 +30,11 @@ const DriveCallback = () => {
         });
 
         const data = await response.json();
-
-        // 3. Handle specific Token mappings (Google sometimes nests them)
         const finalToken = data.access_token || data.tokens?.access_token;
 
         if (response.ok && finalToken) {
           console.log("✅ [DRIVE_CALLBACK] Handshake Successful. Storing Vector.");
           
-          // Store the token and the refresh token if provided
           localStorage.setItem("google_drive_token", finalToken);
           
           const refreshToken = data.refresh_token || data.tokens?.refresh_token;
@@ -48,10 +42,8 @@ const DriveCallback = () => {
             localStorage.setItem("google_drive_refresh_token", refreshToken);
           }
 
-          // 🚀 Success: Launch the Audit Dashboard
           navigate("/drive-audit");
         } else {
-          // 🛑 ERROR HANDLING
           console.error("❌ [DRIVE_CALLBACK] Handshake Failure:", data);
           
           await Swal.fire({
@@ -60,7 +52,10 @@ const DriveCallback = () => {
             icon: "error",
             background: "#0B1221",
             color: "#fff",
-            confirmButtonColor: "#FF4B5C"
+            confirmButtonColor: "#FF4B5C",
+            customClass: {
+              popup: 'w-[90%] md:w-auto rounded-2xl'
+            }
           });
 
           navigate("/inventory");
@@ -75,30 +70,31 @@ const DriveCallback = () => {
   }, [location, navigate]);
 
   return (
-    <div className="min-h-screen bg-cobalt-bg flex flex-col items-center justify-center text-white font-sans">
-      {/* Visual Loader */}
-      <div className="relative mb-8">
-        <div className="absolute -inset-4 bg-cobalt-accent/20 rounded-full blur-xl animate-pulse"></div>
-        <RefreshCw className="relative text-cobalt-accent animate-spin" size={60} />
-        <Activity className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/50" size={20} />
+    <div className="min-h-screen bg-cobalt-bg flex flex-col items-center justify-center text-white font-sans p-6">
+      
+      {/* Visual Loader - Scaled for Mobile */}
+      <div className="relative mb-8 md:mb-10">
+        <div className="absolute -inset-4 md:-inset-6 bg-cobalt-accent/20 rounded-full blur-xl md:blur-2xl animate-pulse"></div>
+        <RefreshCw className="relative text-cobalt-accent animate-spin w-12 h-12 md:w-[60px] md:h-[60px]" />
+        <Activity className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/50 w-4 h-4 md:w-5 md:h-5" />
       </div>
       
-      {/* Status Messages */}
-      <div className="text-center space-y-3">
-        <h2 className="text-[10px] font-black uppercase tracking-[0.6em] text-cobalt-accent animate-pulse">
+      {/* Status Messages - Responsive Typography */}
+      <div className="text-center space-y-4 max-w-xs md:max-w-md">
+        <h2 className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.4em] md:tracking-[0.6em] text-cobalt-accent animate-pulse leading-relaxed">
           Initializing_Neural_Handshake
         </h2>
         <div className="flex items-center justify-center gap-2">
-            <span className="h-[1px] w-4 bg-white/10"></span>
-            <p className="text-[8px] font-bold text-cobalt-muted uppercase tracking-[0.3em]">
+            <span className="h-[1px] w-3 md:w-4 bg-white/10"></span>
+            <p className="text-[7px] md:text-[8px] font-bold text-cobalt-muted uppercase tracking-[0.2em] md:tracking-[0.3em] whitespace-nowrap">
                 Vector Exchange: Phase_2_Active
             </p>
-            <span className="h-[1px] w-4 bg-white/10"></span>
+            <span className="h-[1px] w-3 md:w-4 bg-white/10"></span>
         </div>
       </div>
 
-      {/* Background HUD elements */}
-      <div className="fixed bottom-10 left-10 opacity-10 font-mono text-[8px] uppercase tracking-tighter">
+      {/* Background HUD elements - Hidden on small mobile to avoid overlap */}
+      <div className="fixed bottom-6 left-6 md:bottom-10 md:left-10 opacity-10 font-mono text-[7px] md:text-[8px] uppercase tracking-tighter hidden xs:block">
         Trace_ID: {Math.random().toString(16).slice(2, 10).toUpperCase()}<br />
         Protocol: OAuth_2.0_Secure_Tunnel
       </div>
