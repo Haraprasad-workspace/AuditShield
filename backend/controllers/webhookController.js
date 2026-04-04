@@ -9,7 +9,6 @@ async function processFile(file, commitSha, repoFullName, userId) {
   const filename = file.filename;
 
   if (isExcludedFile(filename)) {
-    console.log(`   ⏭️  Skipped (excluded): ${filename}`);
     return;
   }
 
@@ -17,19 +16,23 @@ async function processFile(file, commitSha, repoFullName, userId) {
 
   // 1️⃣ Sensitive filename check
   if (isSensitiveFilename(filename)) {
-    findings.push({ type: "Sensitive file committed", file: filename, entropy: null });
+    findings.push({
+      type: "Sensitive file committed",
+      file: filename,
+      entropy: null,
+    });
   }
 
   // 2️⃣ Scan file content
   if (file.raw_url) {
     const content = await fetchFileContent(file.raw_url);
     if (content) {
-      findings = [...findings, ...scanForSecrets(content, filename)];
+      const contentFindings = scanForSecrets(content, filename);
+      findings = [...findings, ...contentFindings];
     }
   }
 
   if (findings.length === 0) {
-    console.log(`   ✅ Clean: ${filename}`);
     return;
   }
 
@@ -39,24 +42,24 @@ async function processFile(file, commitSha, repoFullName, userId) {
     source: "github",
     message: `Secret detected in file: ${finding.file}`,
     risk: "critical",
-    reason: `[${finding.type}] in ${finding.file} — commit ${commitSha.slice(0, 7)}${
-      finding.entropy ? ` (entropy: ${finding.entropy})` : ""
-    }`,
+    reason: `[${finding.type}] in ${finding.file} — commit ${commitSha.slice(
+      0,
+      7
+    )}${finding.entropy ? ` (entropy: ${finding.entropy})` : ""}`,
     suggestion:
       "Remove the secret immediately, rotate/revoke the key, and audit access logs. Use git-filter-repo to purge from history.",
     repo: repoFullName,
     commit_sha: commitSha,
     file_path: finding.file,
-    status: 'open',
-    created_at: new Date().toISOString() // Ensure precise timestamping
+    status: "open",
+    created_at: new Date().toISOString(),
   }));
 
-  // ✅ NEEDY CHANGE: Deduplication logic to prevent "4 logs for 1 change"
+  // ✅ Deduplication logic
   for (const alert of alerts) {
     const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
-    
-    // Check if this exact alert was recently inserted
-    const { data: existing } = await supabase
+
+    const { data: existing, error: checkError } = await supabase
       .from("alerts")
       .select("id")
       .eq("message", alert.message)
@@ -64,29 +67,28 @@ async function processFile(file, commitSha, repoFullName, userId) {
       .gt("created_at", tenSecondsAgo)
       .maybeSingle();
 
+    if (checkError) {
+      console.error("Deduplication check error:", checkError.message);
+    }
+
     if (!existing) {
       const { error } = await supabase.from("alerts").insert([alert]);
-      if (error) console.error(`❌ Supabase insert error:`, error.message);
-    } else {
-      console.log(`   🛡️  Deduplication: Blocked redundant log for ${filename}`);
+
+      if (error) {
+        console.error("Alert insert error:", error.message);
+      }
     }
   }
-
-  findings.forEach((f) =>
-    console.log(
-      `   🚨 [${f.type}] in ${f.file}` + (f.entropy ? ` | entropy: ${f.entropy}` : "")
-    )
-  );
 }
 
 export async function handleGithubWebhook(req, res) {
-  // ✅ NEEDY CHANGE: Filter for actual 'push' events only
-  const githubEvent = req.headers['x-github-event'];
-  if (githubEvent !== 'push') {
-    return res.status(200).send('Non-push event ignored.');
+  const githubEvent = req.headers["x-github-event"];
+
+  if (githubEvent !== "push") {
+    return res.status(200).send("Ignored");
   }
 
-  res.sendStatus(200); // Respond fast to avoid GitHub timeout
+  res.sendStatus(200);
 
   try {
     const { commits, repository } = req.body;
@@ -96,9 +98,8 @@ export async function handleGithubWebhook(req, res) {
     }
 
     const repoFullName = repository.full_name;
-    console.log(`\n🚀 Push received — repo: ${repoFullName} | commits: ${commits.length}`);
 
-    // 🕵️ LOOKUP: Find user attribution
+    // 🕵️ Find user
     const { data: repoRecord, error: repoError } = await supabase
       .from("connected_repos")
       .select("user_id")
@@ -106,13 +107,15 @@ export async function handleGithubWebhook(req, res) {
       .single();
 
     if (repoError || !repoRecord) {
-      console.error(`❌ Attribution Error: Repo ${repoFullName} not found.`);
+      console.error(
+        `Repository ${repoFullName} not linked to any user`
+      );
       return;
     }
 
     const userId = repoRecord.user_id;
 
-    // ✅ Parallel file list fetching
+    // Fetch files for commits
     const allCommitFiles = await Promise.all(
       commits.map((commit) =>
         getCommitFiles(repoFullName, commit.id).then((files) => ({
@@ -122,17 +125,15 @@ export async function handleGithubWebhook(req, res) {
       )
     );
 
-    // ✅ Parallel file processing
+    // Process files
     const allTasks = allCommitFiles.flatMap(({ sha, files }) =>
-      files.map((file) => processFile(file, sha, repoFullName, userId))
+      files.map((file) =>
+        processFile(file, sha, repoFullName, userId)
+      )
     );
 
     await Promise.all(allTasks);
-
-    console.log(
-      `\n✅ Done — scanned ${allTasks.length} file(s) across ${commits.length} commit(s) for User: ${userId}`
-    );
   } catch (err) {
-    console.error("❌ Webhook processing error:", err);
+    console.error("Webhook processing failed:", err.message);
   }
 }

@@ -5,19 +5,9 @@ import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const debug = (label, data = "") => {
-  console.log(`[DEBUG] ── ${label} ──`, data !== "" ? data : "");
-};
-
-const debugError = (label, err) => {
-  console.error(`[ERROR] ── ${label} ──`, err?.message);
-};
-
 // ── PDF extraction ────────────────────────────────────────────────
 const extractPdfText = async (buffer) => {
-  debug("extractPdfText", "Starting PDF parse...");
   const uint8Array = new Uint8Array(buffer);
-
   const loadingTask = pdfjsLib.getDocument({
     data: uint8Array,
     disableWorker: true,
@@ -25,14 +15,12 @@ const extractPdfText = async (buffer) => {
   });
 
   const pdfDoc = await loadingTask.promise;
-
   let text = "";
   for (let i = 1; i <= pdfDoc.numPages; i++) {
     const page = await pdfDoc.getPage(i);
     const content = await page.getTextContent();
     text += content.items.map((item) => item.str).join(" ") + "\n";
   }
-
   return text;
 };
 
@@ -42,15 +30,12 @@ const extractText = async (buffer, mimetype, originalname) => {
     if (mimetype.includes("pdf") || originalname.endsWith(".pdf")) {
       return await extractPdfText(buffer);
     }
-
     if (mimetype.includes("docx") || originalname.endsWith(".docx")) {
       const result = await mammoth.extractRawText({ buffer });
       return result.value;
     }
-
     return buffer.toString("utf-8");
   } catch (err) {
-    debugError("extractText failed", err);
     throw new Error("FAILED_TO_EXTRACT_TEXT: " + err.message);
   }
 };
@@ -73,103 +58,45 @@ const safeJsonParse = (str) => {
   }
 };
 
-// ── 🔥 Fallback detection (CRITICAL FOR DEMO) ─────────────────────
+// ── Fallback detection ───────────────────────────────────────────
 const fallbackScan = (text) => {
   const findings = [];
-
   if (/\b\d{4} \d{4} \d{4} \d{4}\b/.test(text)) {
-    findings.push({
-      type: "sensitive",
-      severity: "critical",
-      detail: "Credit card detected",
-      suggestion: "Mask or remove card details",
-    });
+    findings.push({ type: "sensitive", severity: "critical", detail: "Credit card detected", suggestion: "Mask or remove card details" });
   }
-
   if (/sk-[a-zA-Z0-9\-]+/.test(text)) {
-    findings.push({
-      type: "sensitive",
-      severity: "critical",
-      detail: "API key detected",
-      suggestion: "Store in environment variables",
-    });
+    findings.push({ type: "sensitive", severity: "critical", detail: "API key detected", suggestion: "Store in environment variables" });
   }
-
   if (/password/i.test(text)) {
-    findings.push({
-      type: "policy",
-      severity: "critical",
-      detail: "Hardcoded password found",
-      suggestion: "Never store plaintext passwords",
-    });
+    findings.push({ type: "policy", severity: "critical", detail: "Hardcoded password found", suggestion: "Never store plaintext passwords" });
   }
-
   if (/\b\d{3}-\d{2}-\d{4}\b/.test(text)) {
-    findings.push({
-      type: "pii",
-      severity: "critical",
-      detail: "SSN detected",
-      suggestion: "Remove sensitive identity info",
-    });
+    findings.push({ type: "pii", severity: "critical", detail: "SSN detected", suggestion: "Remove sensitive identity info" });
   }
-
   if (/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)) {
-    findings.push({
-      type: "pii",
-      severity: "medium",
-      detail: "Email detected",
-      suggestion: "Mask personal email",
-    });
+    findings.push({ type: "pii", severity: "medium", detail: "Email detected", suggestion: "Mask personal email" });
   }
-
   if (/\b\d{10}\b/.test(text)) {
-    findings.push({
-      type: "pii",
-      severity: "medium",
-      detail: "Phone number detected",
-      suggestion: "Mask phone number",
-    });
+    findings.push({ type: "pii", severity: "medium", detail: "Phone number detected", suggestion: "Mask phone number" });
   }
-
   return findings;
 };
 
 // ── Groq audit ────────────────────────────────────────────────────
-const auditChunkWithGroq = async (chunk, index) => {
+const auditChunkWithGroq = async (chunk) => {
   try {
     const res = await groq.chat.completions.create({
       model: "llama3-70b-8192",
       messages: [
         {
           role: "system",
-          content: `
-You are a STRICT security auditor.
-
-Detect ALL:
-- Emails
-- Phone numbers
-- Passwords
-- API keys
-- Credit cards
-- SSN
-- Hardcoded credentials
-- Sensitive or confidential data
-
-DO NOT return empty findings if any exist.
-
-Return JSON:
-{"findings":[{"type":"","severity":"","detail":"","suggestion":""}]}
-`,
+          content: `You are a STRICT security auditor. Detect ALL: Emails, Phone numbers, Passwords, API keys, Credit cards, SSN, Hardcoded credentials. Return JSON: {"findings":[{"type":"","severity":"","detail":"","suggestion":""}]}`,
         },
-        {
-          role: "user",
-          content: chunk,
-        },
+        { role: "user", content: chunk },
       ],
       temperature: 0.1,
       response_format: { type: "json_object" },
     });
-
     return safeJsonParse(res.choices[0]?.message?.content || "{}");
   } catch {
     return { findings: [] };
@@ -179,38 +106,19 @@ Return JSON:
 // ── MAIN ──────────────────────────────────────────────────────────
 const uploadAndAudit = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const { buffer, mimetype, originalname } = req.file;
-
     const text = await extractText(buffer, mimetype, originalname);
 
-    if (!text || text.trim().length < 5) {
-      return res.status(422).json({ error: "Empty document" });
-    }
-
-    console.log("EXTRACTED TEXT:", text.slice(0, 500));
+    if (!text || text.trim().length < 5) return res.status(422).json({ error: "Empty document" });
 
     const chunks = chunkText(text);
-
-    const aiResults = await Promise.all(
-      chunks.map((c, i) => auditChunkWithGroq(c, i))
-    );
-
+    const aiResults = await Promise.all(chunks.map((c) => auditChunkWithGroq(c)));
     const aiFindings = aiResults.flatMap((r) => r.findings || []);
-
-    // 🔥 Merge fallback
     const fallbackFindings = fallbackScan(text);
-
     const allFindings = [...aiFindings, ...fallbackFindings];
 
-    const criticalCount = allFindings.filter(
-      (f) => f.severity === "critical"
-    ).length;
-
-    // Save to DB
     if (allFindings.length > 0) {
       await supabase.from("alerts").insert(
         allFindings.map((f) => ({
@@ -226,11 +134,11 @@ const uploadAndAudit = async (req, res) => {
 
     return res.json({
       findings: allFindings.length,
-      critical: criticalCount,
+      critical: allFindings.filter((f) => f.severity === "critical").length,
       details: allFindings,
     });
-
   } catch (err) {
+    console.error(`[DOCUMENT_AUDIT_ERROR]: ${err.message}`);
     return res.status(500).json({ error: err.message });
   }
 };

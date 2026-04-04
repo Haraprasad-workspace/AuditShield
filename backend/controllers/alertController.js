@@ -5,7 +5,7 @@ export const getAlerts = async (req, res) => {
   try {
     const { source } = req.query;
 
-    // ✅ FIX 1: Set headers to prevent browser/proxy caching
+    // Prevent browser/proxy caching
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -24,7 +24,7 @@ export const getAlerts = async (req, res) => {
 
     res.status(200).json(data);
   } catch (err) {
-    console.error("Alert Fetch Error:", err.message);
+    console.error(`[ALERT_FETCH_ERROR]: ${err.message}`);
     res.status(500).json({ error: "Failed to retrieve audit trail." });
   }
 };
@@ -32,7 +32,6 @@ export const getAlerts = async (req, res) => {
 // --- GET: Recent Alerts (For Dashboard Feed) ---
 export const getRecentAlerts = async (req, res) => {
   try {
-    // Prevent caching for dashboard as well
     res.setHeader('Cache-Control', 'no-cache');
 
     const { data, error } = await supabase
@@ -44,40 +43,39 @@ export const getRecentAlerts = async (req, res) => {
     if (error) throw error;
     res.status(200).json(data);
   } catch (err) {
+    console.error(`[DASHBOARD_FEED_ERROR]: ${err.message}`);
     res.status(500).json({ error: "Dashboard feed failed." });
   }
 };
 
-/**
- * ✅ FIX 2: Deduplication Logic (The "Anti-Spam" Bridge)
- * This helps prevent the "1 change = 4 logs" issue.
- * We only allow inserting a log if a similar one wasn't created in the last 5 seconds.
- */
+// --- Deduplication Logic (Anti-Spam Bridge) ---
 export const createLogEntry = async (logData) => {
   try {
-    // 1. Check for a duplicate message in the last 5 seconds
     const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
     
-    const { data: existing } = await supabase
+    // Check for a duplicate message in the last 5 seconds
+    const { data: existing, error: checkError } = await supabase
       .from("alerts")
-      .select("id")
+      .select("id, created_at")
       .eq("message", logData.message)
       .eq("filename", logData.filename || null)
       .gt("created_at", fiveSecondsAgo)
       .maybeSingle();
 
+    if (checkError) throw checkError;
+
     if (existing) {
-      console.log("🛡️ Deduplication: Blocked redundant log entry.");
       return { success: true, duplicated: true };
     }
 
-    // 2. If unique, insert it
-    const { error } = await supabase.from("alerts").insert([logData]);
+    // Insert unique log
+    const { data, error } = await supabase.from("alerts").insert([logData]).select();
+    
     if (error) throw error;
     
-    return { success: true, duplicated: false };
+    return { success: true, duplicated: false, data };
   } catch (err) {
-    console.error("Internal Logging Error:", err.message);
+    console.error(`[LOG_INSERT_ERROR]: ${err.message}`);
     return { success: false, error: err.message };
   }
 };
@@ -94,9 +92,10 @@ export const resolveAlert = async (req, res) => {
       .select();
 
     if (error) throw error;
+
     res.status(200).json({ message: "Threat neutralized", data });
   } catch (err) {
-    console.error("Resolution Error:", err.message);
+    console.error(`[RESOLUTION_ERROR]: ${err.message}`);
     res.status(500).json({ error: "Failed to update alert status." });
   }
 };

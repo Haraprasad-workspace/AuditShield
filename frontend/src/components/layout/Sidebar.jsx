@@ -5,17 +5,18 @@ import {
   LayoutDashboard, 
   Terminal, 
   Link2, 
-  FileSearch, // Replaced FileText for a more "audit" feel
+  FileSearch, 
   FileBarChart,
   Settings,
   LogOut,
-  Fingerprint
+  Fingerprint,
+  HelpCircle // Added for the HowToUse guide
 } from 'lucide-react'
 
 const Sidebar = () => {
   const location = useLocation();
 
-  // Navigation configuration - Updated with Document Audit and Correct Paths
+  // Navigation configuration - Integrated HowToUse route
   const menuItems = [
     { 
       icon: <LayoutDashboard size={20} />, 
@@ -42,11 +43,21 @@ const Sidebar = () => {
       label: 'Reports', 
       path: '/reports' 
     },
+    { 
+      icon: <HelpCircle size={20} />, 
+      label: 'System Guide', 
+      path: '/HowToUse' 
+    },
+    {
+      icon: <Terminal size={20} />,
+      label: 'Terminal',
+      path: '/Terminal'
+    },
+
   ]
 
   const handleLogout = () => {
     localStorage.removeItem('auditshield_token');
-    // window.location.href = '/auth'; // Standard redirect
   }
 
   return (
@@ -71,7 +82,7 @@ const Sidebar = () => {
       </Link>
 
       {/* Navigation Links */}
-      <nav className="flex-1 px-4 flex flex-col gap-1.5">
+      <nav className="flex-1 px-4 flex flex-col gap-1.5 overflow-y-auto custom-scrollbar">
         <p className="text-[9px] font-black text-cobalt-muted uppercase tracking-[0.2em] px-4 mb-2 opacity-50">
           Core Perimeter
         </p>
@@ -112,7 +123,7 @@ const Sidebar = () => {
            </div>
            <div className="flex flex-col">
               <span className="text-[9px] font-black text-white uppercase tracking-tighter">H. Mahapatra</span>
-              <span className="text-[8px] text-risk-low font-bold uppercase tracking-widest">Level 4 Auth</span>
+              <span className="text-[8px] text-risk-low font-bold uppercase tracking-widest">Auth Level 4</span>
            </div>
         </div>
 

@@ -1,6 +1,7 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
+
 // Pages
 import Landing from './pages/Landing'
 import Login from './pages/Login'
@@ -10,6 +11,10 @@ import Inventory from './pages/Inventory'
 import Reports from './pages/Reports'
 import Logs from './pages/Logs'
 import DocumentAudit from './pages/DocumentAudit' // ✅ Added this import
+import DriveCallback from "./pages/DriveCallback";
+import DriveAudit from "./pages/DriveAudit";
+import HowToUse from './pages/HowToUse';
+import Terminal from './pages/Terminal'
 
 // 🔐 Authentication Guard
 const ProtectedRoute = ({ children }) => {
@@ -39,14 +44,27 @@ function App() {
     <Router>
       <PageLayout>
         <Routes>
+          <Route path="/drive-callback/*" element={<DriveCallback />} />
           {/* --- PUBLIC ROUTES --- */}
           <Route path="/" element={<Landing />} />
           
           {/* Prevent logged-in users from seeing Auth pages */}
           <Route path="/auth" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />  
           
           {/* --- PROTECTED ROUTES --- */}
+          <Route 
+            path="/drive-audit" 
+            element={<ProtectedRoute><DriveAudit /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/HowToUse" 
+            element={<ProtectedRoute><HowToUse /></ProtectedRoute>} 
+          />
+          <Route 
+            path="/Terminal" 
+            element={<ProtectedRoute><Terminal /></ProtectedRoute>} 
+          />
           <Route 
             path="/dashboard" 
             element={<ProtectedRoute><Dashboard /></ProtectedRoute>} 
