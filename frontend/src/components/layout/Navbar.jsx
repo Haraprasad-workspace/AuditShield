@@ -1,15 +1,16 @@
 import React from 'react'
-import { motion } from 'framer-motion' // Added for smooth UI
-import { Search, Bell, UserCircle, Zap } from 'lucide-react'
+import { motion } from 'framer-motion' 
+import { Search, Bell, UserCircle } from 'lucide-react'
 
 const Navbar = () => {
   return (
     <motion.nav 
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="h-20 border-b border-cobalt-border bg-cobalt-bg/60 backdrop-blur-xl flex items-center justify-between px-10 sticky top-0 z-40 w-full"
+      // Adjusted px-4 for mobile and px-10 for desktop
+      className="h-20 border-b border-cobalt-border bg-cobalt-bg/60 backdrop-blur-xl flex items-center justify-between px-4 md:px-10 sticky top-0 z-40 w-full"
     >
-      {/* --- LEFT: SEARCH AREA --- */}
+      {/* --- LEFT: SEARCH AREA (Hidden on Mobile) --- */}
       <div className="relative w-72 lg:w-96 hidden md:block group">
         <Search 
           className="absolute left-4 top-1/2 -translate-y-1/2 text-cobalt-muted group-focus-within:text-cobalt-accent transition-colors" 
@@ -22,11 +23,16 @@ const Navbar = () => {
         />
       </div>
 
+      {/* --- MOBILE SEARCH ICON (Visible only on mobile) --- */}
+      <div className="md:hidden ml-12"> {/* ml-12 provides space for the hamburger menu */}
+        <Search size={20} className="text-cobalt-muted" />
+      </div>
+
       {/* --- RIGHT: USER ACTIONS --- */}
-      <div className="flex items-center gap-8 text-cobalt-muted ml-auto">
+      <div className="flex items-center gap-3 md:gap-8 text-cobalt-muted ml-auto">
         
-        {/* Status Indicator (Added for UX) */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-risk-low/5 rounded-full border border-risk-low/10">
+        {/* Status Indicator (Hidden on small mobile) */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-risk-low/5 rounded-full border border-risk-low/10">
           <div className="w-1.5 h-1.5 rounded-full bg-risk-low animate-pulse"></div>
           <span className="text-[9px] font-black uppercase tracking-widest text-risk-low">System_Live</span>
         </div>
@@ -41,14 +47,15 @@ const Navbar = () => {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-cobalt-accent rounded-full border-2 border-cobalt-bg shadow-[0_0_10px_#38BDF8]"></span>
         </motion.div>
 
-        <div className="h-6 w-[1px] bg-cobalt-border"></div>
+        <div className="h-6 w-[1px] bg-cobalt-border hidden sm:block"></div>
 
         {/* Profile Section */}
         <motion.div 
           whileHover={{ x: 5 }}
-          className="flex items-center gap-3 hover:text-white cursor-pointer group"
+          className="flex items-center gap-2 md:gap-3 hover:text-white cursor-pointer group"
         >
-          <div className="flex flex-col items-end">
+          {/* Labels hidden on small screens to save space */}
+          <div className="hidden xs:flex flex-col items-end">
             <span className="text-[10px] font-black uppercase tracking-widest text-white leading-none">
               Haraprasad
             </span>
