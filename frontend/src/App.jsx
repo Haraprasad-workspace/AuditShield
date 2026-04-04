@@ -44,7 +44,7 @@ function App() {
     <Router>
       <PageLayout>
         <Routes>
-          <Route path="/drive-callback/*" element={<DriveCallback />} />
+          <Route path="/drive-callback" element={<DriveCallback />} />
           {/* --- PUBLIC ROUTES --- */}
           <Route path="/" element={<Landing />} />
           
