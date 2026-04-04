@@ -29,13 +29,11 @@ const LogEntry = ({ id, timestamp, source, event, status, resolved, onResolve, i
       animate={{ opacity: resolved ? 0.4 : 1, y: 0 }}
       exit={{ opacity: 0, x: 10 }}
       transition={{ delay: index * 0.02 }}
-      // TRANSFORMATION: Stack on mobile, Grid on desktop
       className={`flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8 py-5 px-6 md:px-10 border-b border-white/5 hover:bg-white/[0.03] transition-all group`}
     >
-      {/* Mobile Header: Time + Source */}
       <div className="flex justify-between items-center md:col-span-2">
         <div className="text-cobalt-muted tabular-nums font-mono text-[9px] md:text-[10px] tracking-widest uppercase">
-          {timestamp.split(',')[1]} {/* Show only time on mobile if space is tight */}
+          {timestamp.split(',')[1]}
         </div>
         <div className="md:hidden">
             <span className={`px-2 py-0.5 rounded border text-[8px] font-black uppercase tracking-widest ${
@@ -46,19 +44,16 @@ const LogEntry = ({ id, timestamp, source, event, status, resolved, onResolve, i
         </div>
       </div>
       
-      {/* Source Tag */}
       <div className="md:col-span-2 flex items-center">
         <span className="px-2 md:px-3 py-1 bg-cobalt-accent/10 border border-cobalt-accent/20 rounded-lg text-cobalt-accent uppercase text-[8px] md:text-[9px] font-black flex items-center gap-2 tracking-widest w-fit">
           {sourceIcons[source] || <Terminal size={10} />} {source}
         </span>
       </div>
 
-      {/* Description */}
       <div className={`md:col-span-5 text-slate-100 group-hover:text-white transition-colors font-medium tracking-wide text-xs md:text-sm ${resolved ? 'line-through opacity-50' : ''}`}>
         {event}
       </div>
 
-      {/* Desktop Only Status */}
       <div className="hidden md:flex md:col-span-1 justify-center">
         <span className={`px-3 py-1 rounded border text-[9px] font-black uppercase tracking-widest ${
           status === 'Flagged' ? 'border-risk-high text-risk-high bg-risk-high/10 animate-pulse' : 'border-risk-low text-risk-low bg-risk-low/10'
@@ -67,10 +62,10 @@ const LogEntry = ({ id, timestamp, source, event, status, resolved, onResolve, i
         </span>
       </div>
 
-      {/* Action Area */}
       <div className="md:col-span-2 flex justify-end items-center mt-2 md:mt-0">
         {!resolved && status === 'Flagged' ? (
           <button 
+            // FIXED: Passing the ID back to the handler
             onClick={() => onResolve(id)}
             className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-risk-low/20 border border-risk-low/40 rounded-xl text-[9px] font-black uppercase text-risk-low hover:bg-risk-low hover:text-white transition-all shadow-lg"
           >
@@ -120,6 +115,26 @@ const Logs = () => {
     } catch (err) { console.error(err); } finally { if (!isAutoRefresh) setIsRefreshing(false); }
   };
 
+  // The missing function that was causing the error
+  const handleResolve = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/alerts/${id}/resolve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        // Refresh logs after successful resolution
+        fetchLogs(true);
+        // Optional success toast
+        Swal.fire({
+          toast: true, position: 'top-end', icon: 'success',
+          title: 'SECURITY_PATCH_APPLIED',
+          background: '#0B1221', color: '#10B981', showConfirmButton: false, timer: 2000
+        });
+      }
+    } catch (err) { console.error("Resolution Error:", err); }
+  };
+
   useEffect(() => {
     fetchLogs();
     const interval = setInterval(() => fetchLogs(true), 10000);
@@ -151,7 +166,6 @@ const Logs = () => {
           className="p-4 sm:p-8 lg:p-12 space-y-8 md:space-y-12 max-w-[1700px] mx-auto w-full"
         >
           
-          {/* HEADER SECTION */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
             <div className="space-y-2">
               <h2 className="text-4xl md:text-6xl font-heading font-black tracking-tighter uppercase italic">
@@ -165,7 +179,6 @@ const Logs = () => {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto items-center">
-              {/* Source Filter - Horizontal Scroll on Mobile */}
               <div className="bg-white/5 p-1 rounded-xl border border-white/10 flex w-full sm:w-auto overflow-x-auto no-scrollbar">
                 {['all', 'github', 'drive', 'document'].map((source) => (
                   <button
@@ -192,9 +205,7 @@ const Logs = () => {
             </div>
           </div>
 
-          {/* AUDIT CONSOLE CARD */}
           <Card className="p-0 border-white/5 overflow-hidden bg-white/[0.01] backdrop-blur-3xl rounded-[2rem] md:rounded-[3rem] shadow-2xl">
-            {/* Table Header - Hidden on Mobile */}
             <div className="hidden md:grid grid-cols-12 gap-8 py-6 px-10 bg-white/[0.04] border-b border-white/10 text-[9px] uppercase font-black tracking-[0.3em] text-cobalt-muted italic">
               <div className="col-span-2">Timestamp</div>
               <div className="col-span-2">Source</div>
@@ -207,6 +218,7 @@ const Logs = () => {
               <AnimatePresence mode="wait">
                 {paginatedLogs.length > 0 ? (
                   paginatedLogs.map((log, index) => (
+                    // FIXED: Passing handleResolve as the onResolve prop
                     <LogEntry key={log.id} {...log} index={index} onResolve={handleResolve} />
                   ))
                 ) : (
@@ -215,7 +227,6 @@ const Logs = () => {
               </AnimatePresence>
             </div>
 
-            {/* PAGINATION */}
             <div className="p-6 md:p-10 bg-white/[0.02] border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
               <span className="text-[10px] text-cobalt-muted uppercase font-black tracking-widest font-mono">
                 Page {currentPage} of {totalPages || 1}
@@ -241,7 +252,6 @@ const Logs = () => {
             </div>
           </Card>
 
-          {/* SUMMARY GRID */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 pb-10">
             {[
               { label: 'Latency', val: '142ms', color: 'text-white', icon: <Zap size={14}/> },
