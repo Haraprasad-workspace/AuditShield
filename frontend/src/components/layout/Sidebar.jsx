@@ -12,13 +12,14 @@ const Sidebar = () => {
     { name: 'Audit Logs', path: '/logs', icon: FileText },
     { name: 'Terminal', path: '/terminal', icon: Terminal },
     { name: "Reports", path: "/reports", icon: FileText },
-    { name: "Documentation", path: "/HowToUse", icon: BookOpen } // New Navigation Item
+    { name: "Documentation", path: "/HowToUse", icon: BookOpen }
   ];
 
   return (
     <>
-      {/* 📱 MOBILE HAMBURGER BUTTON (Hidden on Desktop) */}
-      <div className="md:hidden fixed top-4 left-4 z-[100]">
+      {/* 📱 MOBILE HAMBURGER BUTTON */}
+      <div className="md:hidden fixed top-4 left-16 z-[100]"> 
+        {/* changed left-4 → left-16 */}
         <button 
           onClick={() => setIsOpen(!isOpen)}
           className="p-2 bg-cobalt-accent text-cobalt-bg rounded-lg shadow-lg"
