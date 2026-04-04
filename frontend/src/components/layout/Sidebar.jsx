@@ -1,10 +1,22 @@
 import React, { useState } from 'react';
-import { Menu, X, Shield, LayoutDashboard, FileText, Database, Terminal, Settings } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, Shield, LayoutDashboard, FileText, Database, Terminal, LogOut } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // 1. Terminate Session Tokens
+    localStorage.removeItem('auditshield_token');
+    localStorage.removeItem('auditshield_user');
+    localStorage.removeItem('auditshield_user_id');
+    localStorage.removeItem('google_drive_token');
+    
+    // 2. Redirect to Terminal Entry
+    navigate('/auth');
+  };
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -50,6 +62,17 @@ const Sidebar = () => {
           </div>
 
           <nav className="space-y-2">
+            {/* 🚪 LOGOUT ACTION (Top of List) */}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all group text-risk-high hover:bg-risk-high/10 border border-transparent hover:border-risk-high/20 mb-6"
+            >
+              <LogOut size={18} />
+              <span className="text-xs font-black uppercase tracking-widest">Logout_Session</span>
+            </button>
+
+            <div className="h-px bg-white/5 my-4 mx-2"></div>
+
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
