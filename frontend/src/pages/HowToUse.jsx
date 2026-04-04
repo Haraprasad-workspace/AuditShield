@@ -80,8 +80,8 @@ const HowToUse = () => {
             <Database size={600} className="text-white/5 rotate-12" />
           </div>
 
-          {/* Header */}
-          <div className="absolute top-10 text-center space-y-4">
+          {/* Header — now in flow above the card */}
+          <div className="text-center space-y-4 mb-8">
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}

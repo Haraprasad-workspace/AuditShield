@@ -39,6 +39,12 @@ export const SECRET_PATTERNS = [
     regex: /Authorization\s*[:=]\s*['"`]?\s*(Bearer|Basic)\s+([A-Za-z0-9+/=_\-\.]{16,})['"`]?/gi,
     extract: (match) => match[2] ?? null,
   },
+    {
+      name: "Generic assignment of sensitive variable",
+      // Matches lines like DB_PASSWORD=..., db_password: ..., password = ..., etc.
+      regex: /([A-Za-z0-9_]*?(key|token|secret|password|pwd|pass)[A-Za-z0-9_]*)\s*[:=]\s*['"`]?([^\s'"\n]+)['"`]?(.*)/gi,
+      extract: (match) => match[3] ?? null,
+    },
   {
     name: "URL with embedded credentials",
     regex: /[a-z][a-z0-9+\-.]*:\/\/[^:@\s]+:[^@\s]{8,}@[^\s]+/gi,

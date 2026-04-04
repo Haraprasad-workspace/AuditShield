@@ -10,6 +10,8 @@ import documentRoutes from "./routes/document.js";
 import alertRoutes from "./routes/alertRoutes.js";
 import reportRoutes from './routes/reportRoutes.js';
 import driveRoutes from './routes/driveRoutes.js';
+import autoFixRoutes from "./routes/autoFix.js";
+import remediateSecretsRoutes from './routes/remediateSecrets.js';
 
 dotenv.config();
 
@@ -32,5 +34,7 @@ app.use("/api", documentRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/drive', driveRoutes);
+app.use('/api', autoFixRoutes);
+app.use('/api', remediateSecretsRoutes);
 
 app.listen(5000, () => console.log("Server running on http://localhost:5000"));

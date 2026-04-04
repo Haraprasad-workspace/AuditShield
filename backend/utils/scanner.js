@@ -25,6 +25,8 @@ export function scanForSecrets(content, filename) {
         type: pattern.name,
         file: filename,
         entropy: extractedValue ? shannonEntropy(extractedValue).toFixed(2) : null,
+        match: match,
+        value: extractedValue
       });
     }
 
