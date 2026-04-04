@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, Shield, LayoutDashboard, FileText, Database, Terminal, Settings } from 'lucide-react';
+import { Menu, X, Shield, LayoutDashboard, FileText, Database, Terminal, BookOpen } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 const Sidebar = () => {
@@ -11,7 +11,8 @@ const Sidebar = () => {
     { name: 'Inventory', path: '/inventory', icon: Database },
     { name: 'Audit Logs', path: '/logs', icon: FileText },
     { name: 'Terminal', path: '/terminal', icon: Terminal },
-    { name: "Reports", path: "/reports", icon: FileText}
+    { name: "Reports", path: "/reports", icon: FileText },
+    { name: "Documentation", path: "/HowToUse", icon: BookOpen } // New Navigation Item
   ];
 
   return (
