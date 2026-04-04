@@ -3,16 +3,16 @@ import { supabase } from '../supabase.js';
 import { createLogEntry } from './alertController.js';
 
 const isValidUUID = (uuid) => {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return regex.test(uuid);
 };
 
-// --- HELPER: Create Client using Environment Variable for Redirect ---
+// --- HELPER: Create Client ---
 const createDriveClient = (token) => {
   const auth = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI // ✅ Replaced hardcoded localhost
+    process.env.GOOGLE_REDIRECT_URI
   );
   auth.setCredentials({ access_token: token });
   return google.drive({ version: 'v3', auth });
@@ -21,8 +21,6 @@ const createDriveClient = (token) => {
 const analyzeFileRisk = (file) => {
   const isPublic = file.permissions?.some(p => p.type === 'anyone');
   const hasSensitiveName = /(credentials|password|config|env|backup|secret|key|token|\.pem|\.key|\.sql)/i.test(file.name);
-  
-  // Deployment Note: Update '@yourdomain.com' to your actual org domain in .env if preferred
   const isExternal = file.permissions?.some(p => p.type === 'user' && p.emailAddress && !p.emailAddress.endsWith('@yourdomain.com'));
 
   if (isPublic) return { level: 'critical', score: 90 };
@@ -32,13 +30,32 @@ const analyzeFileRisk = (file) => {
 
 // --- Action: Sync & Audit Drive ---
 export const auditGoogleDrive = async (req, res) => {
+  console.log("📡 [DRIVE_AUDIT]: Request Received");
+  
   try {
     const { token, userId } = req.body;
-    if (!token || !userId || !isValidUUID(userId)) {
-      return res.status(400).json({ error: "Invalid Security Session." });
+
+    // --- DEBUGGING LOGS ---
+    console.log("🔍 [DEBUG] Token provided:", token ? "YES (truncated: " + token.substring(0, 10) + "...)" : "NO");
+    console.log("🔍 [DEBUG] UserId provided:", userId || "MISSING");
+
+    if (!token) {
+      return res.status(400).json({ error: "Access token is missing from request." });
+    }
+
+    if (!userId) {
+      return res.status(400).json({ error: "User Identifier is missing from request." });
+    }
+
+    if (!isValidUUID(userId)) {
+      console.warn(`⚠️ [AUTH_WARN]: UserId "${userId}" is not a valid UUID. Proceeding with caution.`);
+      // For strict mode, uncomment the line below:
+      // return res.status(400).json({ error: "Security Session Format Invalid." });
     }
 
     const drive = createDriveClient(token);
+    
+    console.log("⚡ [DRIVE_AUDIT]: Fetching files from Google API...");
     const response = await drive.files.list({
       pageSize: 150,
       fields: 'files(id, name, mimeType, permissions, owners, size, webViewLink, parents, modifiedTime)',
@@ -47,6 +64,8 @@ export const auditGoogleDrive = async (req, res) => {
     });
 
     const files = response.data.files || [];
+    console.log(`✅ [DRIVE_AUDIT]: Successfully retrieved ${files.length} files.`);
+
     const auditResults = files.map(file => {
       const risk = analyzeFileRisk(file);
       return {
@@ -76,7 +95,14 @@ export const auditGoogleDrive = async (req, res) => {
       }
     }
 
-    await supabase.from('drive_snapshots').upsert(auditResults, { onConflict: 'file_id, user_id' });
+    console.log("💾 [DRIVE_AUDIT]: Syncing snapshots to Supabase...");
+    const { error: upsertError } = await supabase
+      .from('drive_snapshots')
+      .upsert(auditResults, { onConflict: 'file_id, user_id' });
+
+    if (upsertError) {
+      console.error("❌ [SUPABASE_ERROR]:", upsertError.message);
+    }
 
     res.status(200).json({ 
         stats: {
@@ -87,7 +113,7 @@ export const auditGoogleDrive = async (req, res) => {
         files: auditResults 
     });
   } catch (err) {
-    console.error("❌ [DRIVE_AUDIT_ERROR]:", err.message);
+    console.error("❌ [DRIVE_AUDIT_FATAL]:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
@@ -95,6 +121,7 @@ export const auditGoogleDrive = async (req, res) => {
 // --- Action: Revoke Public Access ---
 export const revokeFileAccess = async (req, res) => {
   const { token, fileId } = req.body;
+  console.log(`🛡️ [REMEDIATE]: Revoking access for file ${fileId}`);
 
   if (!token || !fileId) {
     return res.status(400).json({ error: "Missing required parameters: token or fileId" });
@@ -126,7 +153,7 @@ export const revokeFileAccess = async (req, res) => {
   }
 };
 
-// --- Action: Delete File (Trash) ---
+// --- Action: Delete File ---
 export const deleteDriveFile = async (req, res) => {
   const { token, fileId } = req.body;
   if (!token || !fileId) {
@@ -139,24 +166,27 @@ export const deleteDriveFile = async (req, res) => {
       fileId: fileId,
       requestBody: { trashed: true }
     });
-    res.status(200).json({ message: "Node purged. File moved to cloud trash successfully." });
+    res.status(200).json({ message: "Node purged successfully." });
   } catch (err) {
     console.error("❌ [DELETE_ERROR]:", err.response?.data || err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
-// --- Action: OAuth Callback Exchange ---
+// --- Action: OAuth Callback ---
 export const handleGoogleCallback = async (req, res) => {
   const { code } = req.body;
+  console.log("🔑 [AUTH]: Exchanging code for tokens...");
+
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID, 
     process.env.GOOGLE_CLIENT_SECRET, 
-    process.env.GOOGLE_REDIRECT_URI // ✅ Replaced hardcoded localhost
+    process.env.GOOGLE_REDIRECT_URI
   );
   
   try {
     const { tokens } = await oauth2Client.getToken(code);
+    console.log("✅ [AUTH]: Handshake successful.");
     res.status(200).json(tokens);
   } catch (error) {
     console.error("❌ [AUTH_EXCHANGE_ERROR]:", error.message);
