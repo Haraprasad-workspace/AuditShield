@@ -35,8 +35,7 @@ async function registerGithubWebhook(repoFullName, userToken) {
     let friendlyError = data.message;
 
     if (response.status === 404) {
-      friendlyError =
-        "Repository not found. Ensure correct path and token scopes.";
+      friendlyError = "Repository not found. Ensure correct path and token scopes.";
     } else if (data.errors) {
       friendlyError = `${data.message}: ${data.errors[0].message}`;
     }
@@ -76,12 +75,10 @@ async function deleteGithubWebhook(repoFullName, hookId, userToken) {
 ───────────────────────────────────────────── */
 export async function connectRepo(req, res) {
   try {
-    const { repo, token } = req.body;
+    const { repo, token, useHusky } = req.body; 
 
     if (!repo || !token) {
-      return res
-        .status(400)
-        .json({ error: "Repository name and token are required." });
+      return res.status(400).json({ error: "Repository name and token are required." });
     }
 
     // Check if already connected
@@ -89,23 +86,21 @@ export async function connectRepo(req, res) {
       .from("connected_repos")
       .select("*")
       .eq("repo", repo)
-      .single();
+      .maybeSingle();
 
-    if (checkError && checkError.code !== "PGRST116") {
+    if (checkError) {
       console.error("DB check error:", checkError.message);
-      throw new Error("Database error");
+      throw new Error("Database error during verification.");
     }
 
     if (existing) {
-      return res.status(409).json({
-        error: `Repository '${repo}' already connected.`,
-      });
+      return res.status(409).json({ error: `Repository '${repo}' already connected.` });
     }
 
-    // Register webhook
+    // 1️⃣ Register dynamic webhook on GitHub
     const hook = await registerGithubWebhook(repo, token);
 
-    // Save to DB
+    // 2️⃣ Save connection and Husky preference to DB
     const { error: insertError } = await supabase
       .from("connected_repos")
       .insert([
@@ -115,17 +110,19 @@ export async function connectRepo(req, res) {
           token,
           connected_at: new Date().toISOString(),
           active: true,
+          husky_enabled: !!useHusky // Added Client-Side Shield Flag
         },
       ]);
 
     if (insertError) {
       console.error("DB insert error:", insertError.message);
-      throw new Error("Failed to save connection");
+      throw new Error("Failed to save repository link.");
     }
 
     res.status(200).json({
-      message: `Webhook connected to ${repo}`,
+      message: `Perimeter Guard active for ${repo}`,
       hook_id: hook.id,
+      husky_setup_cmd: useHusky ? "npx auditshield-setup" : null 
     });
   } catch (err) {
     console.error("Connect repo error:", err.message);
@@ -141,12 +138,10 @@ export async function disconnectRepo(req, res) {
     const { repo } = req.body;
 
     if (!repo) {
-      return res
-        .status(400)
-        .json({ error: "Repository name is required." });
+      return res.status(400).json({ error: "Repository name is required for termination." });
     }
 
-    // Fetch repo
+    // Fetch existing link to get token and hook ID
     const { data, error: fetchError } = await supabase
       .from("connected_repos")
       .select("*")
@@ -154,19 +149,17 @@ export async function disconnectRepo(req, res) {
       .single();
 
     if (fetchError || !data) {
-      return res
-        .status(404)
-        .json({ error: "Repository connection not found." });
+      return res.status(404).json({ error: "Repository connection not found in secure storage." });
     }
 
-    // Try deleting webhook (non-blocking)
+    // 1️⃣ Try deleting webhook from GitHub (cleanup)
     try {
       await deleteGithubWebhook(repo, data.hook_id, data.token);
     } catch (err) {
-      console.warn("Webhook delete failed, continuing cleanup");
+      console.warn(`[CLEANUP_WARN]: Webhook for ${repo} could not be removed from GitHub, proceeding with DB purge.`);
     }
 
-    // Delete from DB
+    // 2️⃣ Delete from DB
     const { error: deleteError } = await supabase
       .from("connected_repos")
       .delete()
@@ -174,14 +167,14 @@ export async function disconnectRepo(req, res) {
 
     if (deleteError) {
       console.error("DB delete error:", deleteError.message);
-      throw new Error("Failed to remove record");
+      throw new Error("Failed to purge repository record.");
     }
 
     res.status(200).json({
-      message: `Disconnected ${repo}`,
+      message: `Perimeter for ${repo} decommissioned.`,
     });
   } catch (err) {
-    console.error("Disconnect repo error:", err.message);
+    console.error("Disconnect error:", err.message);
     res.status(500).json({ error: err.message });
   }
 }
@@ -193,11 +186,12 @@ export async function listRepos(req, res) {
   try {
     const { data, error } = await supabase
       .from("connected_repos")
-      .select("repo, connected_at, active, hook_id");
+      .select("repo, connected_at, active, hook_id, husky_enabled")
+      .order("connected_at", { ascending: false });
 
     if (error) {
       console.error("DB list error:", error.message);
-      throw new Error("Could not retrieve repositories");
+      throw new Error("Could not retrieve monitored assets.");
     }
 
     res.status(200).json({

@@ -2,6 +2,8 @@ import { supabase } from "../supabase.js";
 import { getCommitFiles, fetchFileContent } from "../utils/github.js";
 import { scanForSecrets } from "../utils/scanner.js";
 import { isSensitiveFilename, isExcludedFile } from "../utils/patterns.js";
+// ✅ IMPORT: Connect to the Unified Log Engine (Slack + Deduplication)
+import { createLogEntry } from "./alertController.js";
 
 async function processFile(file, commitSha, repoFullName, userId) {
   if (file.status === "removed") return;
@@ -41,13 +43,9 @@ async function processFile(file, commitSha, repoFullName, userId) {
     user_id: userId,
     source: "github",
     message: `Secret detected in file: ${finding.file}`,
-    risk: "critical",
-    reason: `[${finding.type}] in ${finding.file} — commit ${commitSha.slice(
-      0,
-      7
-    )}${finding.entropy ? ` (entropy: ${finding.entropy})` : ""}`,
-    suggestion:
-      "Remove the secret immediately, rotate/revoke the key, and audit access logs. Use git-filter-repo to purge from history.",
+    risk: "critical", // Slack will trigger on 'critical'
+    reason: `[${finding.type}] in ${finding.file} — commit ${commitSha.slice(0, 7)}${finding.entropy ? ` (entropy: ${finding.entropy})` : ""}`,
+    suggestion: "Remove the secret immediately, rotate/revoke the key, and audit access logs. Use git-filter-repo to purge from history.",
     repo: repoFullName,
     commit_sha: commitSha,
     file_path: finding.file,
@@ -55,28 +53,21 @@ async function processFile(file, commitSha, repoFullName, userId) {
     created_at: new Date().toISOString(),
   }));
 
-  // ✅ Deduplication logic
+  // ✅ HANDOFF: Route each alert to the Unified Log Engine
   for (const alert of alerts) {
-    const tenSecondsAgo = new Date(Date.now() - 10000).toISOString();
-
-    const { data: existing, error: checkError } = await supabase
-      .from("alerts")
-      .select("id")
-      .eq("message", alert.message)
-      .eq("commit_sha", alert.commit_sha)
-      .gt("created_at", tenSecondsAgo)
-      .maybeSingle();
-
-    if (checkError) {
-      console.error("Deduplication check error:", checkError.message);
-    }
-
-    if (!existing) {
-      const { error } = await supabase.from("alerts").insert([alert]);
-
-      if (error) {
-        console.error("Alert insert error:", error.message);
+    try {
+      console.log(`📡 [WEBHOOK]: Handoff finding to Log Engine for ${filename}...`);
+      
+      // This function handles the Hardcoded ID, Deduplication, and Slack ping
+      const result = await createLogEntry(alert);
+      
+      if (result.duplicated) {
+        console.log(`⏭️ [WEBHOOK]: Duplicate finding suppressed.`);
+      } else if (result.success) {
+        console.log(`✅ [WEBHOOK]: Security Alert finalized.`);
       }
+    } catch (err) {
+      console.error(`❌ [WEBHOOK_HANDOFF_ERROR]: ${err.message}`);
     }
   }
 }
@@ -88,6 +79,7 @@ export async function handleGithubWebhook(req, res) {
     return res.status(200).send("Ignored");
   }
 
+  // Immediate 200 response to prevent GitHub timeout while we process
   res.sendStatus(200);
 
   try {
@@ -99,7 +91,7 @@ export async function handleGithubWebhook(req, res) {
 
     const repoFullName = repository.full_name;
 
-    // 🕵️ Find user
+    // 🕵️ Find user who linked this repo
     const { data: repoRecord, error: repoError } = await supabase
       .from("connected_repos")
       .select("user_id")
@@ -107,15 +99,13 @@ export async function handleGithubWebhook(req, res) {
       .single();
 
     if (repoError || !repoRecord) {
-      console.error(
-        `Repository ${repoFullName} not linked to any user`
-      );
+      console.error(`Repository ${repoFullName} not linked to any user`);
       return;
     }
 
     const userId = repoRecord.user_id;
 
-    // Fetch files for commits
+    // Fetch files for all commits in the push
     const allCommitFiles = await Promise.all(
       commits.map((commit) =>
         getCommitFiles(repoFullName, commit.id).then((files) => ({
@@ -125,7 +115,7 @@ export async function handleGithubWebhook(req, res) {
       )
     );
 
-    // Process files
+    // Process files and scan for secrets
     const allTasks = allCommitFiles.flatMap(({ sha, files }) =>
       files.map((file) =>
         processFile(file, sha, repoFullName, userId)

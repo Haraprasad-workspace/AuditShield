@@ -2,6 +2,8 @@ import Groq from "groq-sdk";
 import mammoth from "mammoth";
 import { supabase } from "../supabase.js";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+// ✅ IMPORT: Unified engine for Slack and Deduplication
+import { createLogEntry } from "./alertController.js";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -119,17 +121,23 @@ const uploadAndAudit = async (req, res) => {
     const fallbackFindings = fallbackScan(text);
     const allFindings = [...aiFindings, ...fallbackFindings];
 
+    // ✅ UPDATED: Call createLogEntry for each finding
     if (allFindings.length > 0) {
-      await supabase.from("alerts").insert(
-        allFindings.map((f) => ({
+      console.log(`📑 [DOC_AUDIT]: Routing ${allFindings.length} findings to Unified Engine...`);
+      
+      for (const f of allFindings) {
+        const logData = {
           source: "document",
           message: `[${f.type}] ${f.detail}`,
-          risk: f.severity,
+          risk: f.severity, // Usually 'critical' or 'medium'
           filename: originalname,
           resolved: false,
           created_at: new Date().toISOString(),
-        }))
-      );
+        };
+
+        // This triggers deduplication and Slack
+        await createLogEntry(logData);
+      }
     }
 
     return res.json({
