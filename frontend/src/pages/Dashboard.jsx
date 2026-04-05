@@ -53,7 +53,7 @@ const Dashboard = () => {
   // --- NEW: INVESTIGATION PROTOCOL ---
   const handleInvestigate = (alert) => {
     Swal.fire({
-      title: 'NEURAL_DEEP_SCAN',
+      title: 'DEEP_SCAN',
       html: `
         <div style="text-align: left; font-family: monospace; font-size: 11px; color: #94a3b8;">
           <p>> Initializing trace on Node: ${alert.id.slice(0, 8)}...</p>
@@ -106,7 +106,7 @@ const Dashboard = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 border-b border-white/5 pb-8">
             <div className="space-y-1">
               <h1 className="text-3xl md:text-5xl font-heading font-black tracking-tighter uppercase italic">
-                Neural_<span className="text-cobalt-accent">Dashboard</span>
+                <span className="text-cobalt-accent">Dashboard</span>
               </h1>
               <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.3em] text-cobalt-muted">
                 <span className="flex items-center gap-1.5"><Activity size={12} className="text-risk-low animate-pulse"/> Perimeter Status: Optimal</span>
@@ -145,7 +145,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <p className="max-w-xs text-sm text-cobalt-muted font-medium italic leading-relaxed">
-                  Neural scan cycle complete. Your environment is <span className="text-white font-black">{securityScore > 90 ? 'REINFORCED' : 'VULNERABLE'}</span>.
+                   scan cycle complete. Your environment is <span className="text-white font-black">{securityScore > 90 ? 'REINFORCED' : 'VULNERABLE'}</span>.
                 </p>
                 <div className="flex gap-3 justify-center md:justify-start">
                    <span className="px-4 py-1.5 bg-risk-low/10 border border-risk-low/20 rounded-xl text-[9px] font-black text-risk-low uppercase tracking-widest flex items-center gap-2">
