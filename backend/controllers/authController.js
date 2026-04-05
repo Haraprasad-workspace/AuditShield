@@ -9,8 +9,6 @@ export const registerUser = async (req, res) => {
       email,
       password,
       options: {
-        // Metadata is saved in the auth.users table and 
-        // copied to public.profiles by your SQL trigger
         data: {
           full_name: fullName,
           organization: organization,
@@ -40,7 +38,6 @@ export const loginUser = async (req, res) => {
     });
 
     if (error) {
-      // Specifically catch the "Email not confirmed" error for the UI
       if (error.message.includes("Email not confirmed")) {
         return res.status(403).json({ 
           error: "Verification Required. Please click the link in your email to authorize this session." 
@@ -49,7 +46,6 @@ export const loginUser = async (req, res) => {
       throw error;
     }
 
-    // Success response for AuditShield Dashboard
     res.status(200).json({
       message: "Authorization Granted",
       session: data.session,
@@ -61,7 +57,21 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    // 401 for Invalid Credentials
     res.status(401).json({ error: error.message });
+  }
+};
+
+// LOGOUT USER (New Functionality)
+export const logoutUser = async (req, res) => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) throw error;
+
+    res.status(200).json({ 
+      message: "Session Terminated. Perimeter access revoked." 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
